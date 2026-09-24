@@ -1,0 +1,7 @@
+{
+  "name": "SentinelOps AI",
+  "description": "AI SOC Analyst & Incident Response Copilot - Modular platform for security event ingestion, detection, and incident response.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

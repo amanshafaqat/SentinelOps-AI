@@ -1,0 +1,182 @@
+[
+  {
+    "timestamp": "2026-09-24T10:01:15Z",
+    "event_type": "authentication",
+    "source": "linux_auth",
+    "source_ip": "198.51.100.42",
+    "destination_ip": "10.0.1.15",
+    "source_port": 49210,
+    "destination_port": 22,
+    "username": "root",
+    "hostname": "prod-bastion-01",
+    "action": "login",
+    "status": "failure",
+    "severity": "medium",
+    "message": "Failed password for root from 198.51.100.42 port 49210 ssh2",
+    "metadata": {
+      "auth_method": "password",
+      "simulation_tag": "demo_brute_force_attack"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:01:28Z",
+    "event_type": "authentication",
+    "source": "linux_auth",
+    "source_ip": "198.51.100.42",
+    "destination_ip": "10.0.1.15",
+    "source_port": 49214,
+    "destination_port": 22,
+    "username": "admin",
+    "hostname": "prod-bastion-01",
+    "action": "login",
+    "status": "failure",
+    "severity": "medium",
+    "message": "Failed password for admin from 198.51.100.42 port 49214 ssh2",
+    "metadata": {
+      "auth_method": "password",
+      "simulation_tag": "demo_brute_force_attack"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:01:42Z",
+    "event_type": "authentication",
+    "source": "linux_auth",
+    "source_ip": "198.51.100.42",
+    "destination_ip": "10.0.1.15",
+    "source_port": 49220,
+    "destination_port": 22,
+    "username": "svc-deploy",
+    "hostname": "prod-bastion-01",
+    "action": "login",
+    "status": "failure",
+    "severity": "medium",
+    "message": "Failed password for svc-deploy from 198.51.100.42 port 49220 ssh2",
+    "metadata": {
+      "auth_method": "password",
+      "simulation_tag": "demo_brute_force_attack"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:02:10Z",
+    "event_type": "authentication",
+    "source": "linux_auth",
+    "source_ip": "198.51.100.42",
+    "destination_ip": "10.0.1.15",
+    "source_port": 49235,
+    "destination_port": 22,
+    "username": "svc-deploy",
+    "hostname": "prod-bastion-01",
+    "action": "login",
+    "status": "success",
+    "severity": "high",
+    "message": "Accepted password for svc-deploy from 198.51.100.42 port 49235 ssh2",
+    "metadata": {
+      "auth_method": "password",
+      "flag": "potential_credential_compromise",
+      "prior_failures_detected": 3
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:03:05Z",
+    "event_type": "privilege_change",
+    "source": "linux_auth",
+    "source_ip": "198.51.100.42",
+    "destination_ip": "10.0.1.15",
+    "username": "svc-deploy",
+    "hostname": "prod-bastion-01",
+    "action": "sudo",
+    "status": "success",
+    "severity": "critical",
+    "message": "COMMAND=/bin/bash executed by user svc-deploy with sudo privileges",
+    "metadata": {
+      "target_user": "root",
+      "terminal": "pts/2",
+      "threat_indicator": "unauthorized_interactive_root_shell"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:04:18Z",
+    "event_type": "user_management",
+    "source": "linux_auth",
+    "username": "root",
+    "hostname": "prod-bastion-01",
+    "action": "user_created",
+    "status": "success",
+    "severity": "high",
+    "message": "New account 'backdoor_backup' created and added to group 'wheel'",
+    "metadata": {
+      "added_groups": ["wheel", "sudo"],
+      "created_by": "root"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:12:00Z",
+    "event_type": "network",
+    "source": "palo_alto_fw",
+    "source_ip": "203.0.113.88",
+    "destination_ip": "10.0.1.50",
+    "source_port": 54312,
+    "destination_port": 445,
+    "hostname": "perimeter-fw-01",
+    "action": "block",
+    "status": "blocked",
+    "severity": "medium",
+    "message": "Inbound SMB connection attempt from external untrusted IP blocked by policy 'DROP_INBOUND_SMB'",
+    "metadata": {
+      "protocol": "TCP",
+      "rule": "DROP_INBOUND_SMB",
+      "interface": "wan1"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:15:30Z",
+    "event_type": "authentication",
+    "source": "okta_sso",
+    "source_ip": "203.0.113.195",
+    "username": "jane.analyst@company.local",
+    "hostname": "identity-cloud",
+    "action": "mfa_challenge",
+    "status": "failure",
+    "severity": "medium",
+    "message": "User Jane Analyst denied Okta Verify push challenge: 'Did not initiate request'",
+    "metadata": {
+      "client_country": "DE",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "mfa_factor": "push_notification"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:20:00Z",
+    "event_type": "process",
+    "source": "crowdstrike_edr",
+    "source_ip": "10.0.2.45",
+    "username": "c.engineer",
+    "hostname": "corp-win11-042",
+    "action": "process_injection",
+    "status": "blocked",
+    "severity": "critical",
+    "message": "Suspicious process memory access into lsass.exe detected and terminated by Endpoint Agent",
+    "metadata": {
+      "file_path": "C:\\Users\\c.engineer\\AppData\\Local\\Temp\\update_check.exe",
+      "hash_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "mitre_technique": "T1003.001 - OS Credential Dumping: LSASS Memory"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:25:40Z",
+    "event_type": "cloud_audit",
+    "source": "aws_cloudtrail",
+    "source_ip": "198.51.100.42",
+    "username": "deploy-agent-role",
+    "hostname": "aws:iam:us-east-1",
+    "action": "CreateAccessKey",
+    "status": "success",
+    "severity": "high",
+    "message": "AWS IAM CreateAccessKey requested for user root-admin outside regular CI/CD automation pipeline",
+    "metadata": {
+      "api_service": "iam.amazonaws.com",
+      "user_identity_type": "AssumedRole",
+      "event_source": "iam.amazonaws.com"
+    }
+  }
+]
