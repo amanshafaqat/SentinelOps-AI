@@ -10,6 +10,16 @@ from backend.app.schemas.event import (
     EventImportErrorDetail,
     EventStatsSummary,
 )
+from backend.app.schemas.alert import (
+    AlertResponse,
+    AlertDetailResponse,
+    AlertEvidenceResponse,
+    PaginatedAlertsResponse,
+    AlertStatusUpdate,
+    DetectionRunRequest,
+    DetectionRunResponse,
+    AlertStatsResponse,
+)
 
 __all__ = [
     "SecurityEventBase",
@@ -20,4 +30,12 @@ __all__ = [
     "EventImportSummary",
     "EventImportErrorDetail",
     "EventStatsSummary",
+    "AlertResponse",
+    "AlertDetailResponse",
+    "AlertEvidenceResponse",
+    "PaginatedAlertsResponse",
+    "AlertStatusUpdate",
+    "DetectionRunRequest",
+    "DetectionRunResponse",
+    "AlertStatsResponse",
 ]

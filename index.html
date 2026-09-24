@@ -3,6 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Defensive shim: Ensure window.fetch has both a getter and setter
+      // to prevent "Cannot set property fetch of #<Window> which has only a getter"
+      // when injected dev tools or iframe host scripts wrap window.fetch.
+      (function() {
+        try {
+          var origFetch = typeof window !== 'undefined' && window.fetch ? window.fetch.bind(window) : null;
+          var currentFetch = origFetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return currentFetch;
+            },
+            set: function(newFetch) {
+              currentFetch = typeof newFetch === 'function' ? newFetch : origFetch;
+            },
+            configurable: true,
+            enumerable: true,
+          });
+        } catch (e) {
+          // Ignore if environment prevents redefinition
+        }
+      })();
+    </script>
     <title>SentinelOps AI</title>
     <meta name="description" content="AI SOC Analyst & Incident Response Copilot - Modular platform for security event ingestion, detection, and incident response." />
     <meta property="og:title" content="SentinelOps AI" />

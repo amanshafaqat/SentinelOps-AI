@@ -1,9 +1,14 @@
 timestamp,event_type,source,source_ip,destination_ip,source_port,destination_port,username,hostname,action,status,severity,message
-2026-09-24T10:30:10Z,authentication,windows_event,198.51.100.101,10.0.1.100,52341,3389,Administrator,DC-PRIMARY-01,rdp_login,failure,medium,Failed RDP logon attempt for user Administrator from 198.51.100.101
-2026-09-24T10:30:25Z,authentication,windows_event,198.51.100.101,10.0.1.100,52349,3389,Administrator,DC-PRIMARY-01,rdp_login,failure,medium,Failed RDP logon attempt for user Administrator from 198.51.100.101
-2026-09-24T10:31:00Z,authentication,windows_event,198.51.100.101,10.0.1.100,52360,3389,helpdesk_temp,DC-PRIMARY-01,rdp_login,success,high,Successful RDP logon for helpdesk_temp after prior failed attempts from untrusted WAN IP
+2026-09-24T10:00:05Z,authentication,okta_sso,10.0.3.15,10.0.0.5,,,sarah.dev@company.local,identity-cloud,login,success,low,Routine SSO authentication via SAML for engineer portal
+2026-09-24T10:01:15Z,authentication,linux_auth,198.51.100.42,10.0.1.15,49210,22,root,prod-bastion-01,login,failure,medium,Failed password for root from 198.51.100.42 port 49210 ssh2
+2026-09-24T10:01:28Z,authentication,linux_auth,198.51.100.42,10.0.1.15,49214,22,admin,prod-bastion-01,login,failure,medium,Failed password for admin from 198.51.100.42 port 49214 ssh2
+2026-09-24T10:01:42Z,authentication,linux_auth,198.51.100.42,10.0.1.15,49220,22,svc-deploy,prod-bastion-01,login,failure,medium,Failed password for svc-deploy from 198.51.100.42 port 49220 ssh2
+2026-09-24T10:02:10Z,authentication,linux_auth,198.51.100.42,10.0.1.15,49235,22,svc-deploy,prod-bastion-01,login,success,high,Accepted password for svc-deploy from 198.51.100.42 port 49235 ssh2
+2026-09-24T10:03:05Z,privilege_change,linux_auth,198.51.100.42,10.0.1.15,,,svc-deploy,prod-bastion-01,sudo,success,critical,COMMAND=/bin/bash executed by user svc-deploy with sudo privileges
+2026-09-24T10:04:18Z,user_management,linux_auth,,,,root,prod-bastion-01,user_created,success,high,New account 'backdoor_backup' created and added to group 'wheel'
+2026-09-24T10:10:00Z,authentication,okta_sso,10.0.3.22,10.0.0.5,,,alex.ops@company.local,identity-cloud,login,success,low,Routine SSO authentication via SAML for monitoring dashboard
+2026-09-24T10:30:10Z,authentication,windows_event,198.51.100.101,10.0.1.100,51230,3389,Administrator,DC-PRIMARY-01,rdp_login,failure,medium,Failed RDP logon attempt for user Administrator from 198.51.100.101
+2026-09-24T10:30:25Z,authentication,windows_event,198.51.100.101,10.0.1.100,51234,3389,Administrator,DC-PRIMARY-01,rdp_login,failure,medium,Failed RDP logon attempt for user Administrator from 198.51.100.101
+2026-09-24T10:30:40Z,authentication,windows_event,198.51.100.101,10.0.1.100,51240,3389,Administrator,DC-PRIMARY-01,rdp_login,failure,medium,Failed RDP logon attempt for user Administrator from 198.51.100.101
+2026-09-24T10:31:00Z,authentication,windows_event,198.51.100.101,10.0.1.100,51250,3389,helpdesk_temp,DC-PRIMARY-01,rdp_login,success,high,Successful RDP logon for helpdesk_temp after prior failed attempts from untrusted WAN IP
 2026-09-24T10:32:15Z,privilege_change,windows_event,10.0.1.100,10.0.1.100,,,helpdesk_temp,DC-PRIMARY-01,group_membership_add,success,critical,User helpdesk_temp added to Domain Admins security group
-2026-09-24T10:35:40Z,network,cisco_asa,203.0.113.44,10.0.1.100,44321,445,,perimeter-fw-02,drop_connection,blocked,medium,Teardown TCP connection 44321 to internal host 10.0.1.100 duration 0:00:00 bytes 0 SYN Timeout
-2026-09-24T10:40:00Z,file_access,auditd,10.0.1.15,10.0.1.15,,,root,prod-bastion-01,sensitive_file_read,success,high,Read access to /etc/shadow by UID 0 (gid=0)
-2026-09-24T10:45:10Z,authentication,okta_sso,198.51.100.22,,,,alice.developer@company.local,identity-cloud,password_reset,success,low,Self-service password reset completed via verified SMS token
-2026-09-24T10:50:00Z,cloud_audit,azure_ad,203.0.113.12,,,,bob.manager@company.local,azure-tenant-prod,role_assigned,success,medium,Assigned Global Reader directory role to service principal 'reporting-bot'

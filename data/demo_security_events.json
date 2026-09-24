@@ -1,5 +1,23 @@
 [
   {
+    "timestamp": "2026-09-24T10:00:05Z",
+    "event_type": "authentication",
+    "source": "okta_sso",
+    "source_ip": "10.0.3.15",
+    "destination_ip": "10.0.0.5",
+    "username": "sarah.dev@company.local",
+    "hostname": "identity-cloud",
+    "action": "login",
+    "status": "success",
+    "severity": "low",
+    "message": "Routine SSO authentication via SAML for engineer portal",
+    "metadata": {
+      "scenario": "SIMULATED-BENIGN",
+      "auth_method": "fido2_webauthn",
+      "client": "workstation-mac-12"
+    }
+  },
+  {
     "timestamp": "2026-09-24T10:01:15Z",
     "event_type": "authentication",
     "source": "linux_auth",
@@ -14,8 +32,9 @@
     "severity": "medium",
     "message": "Failed password for root from 198.51.100.42 port 49210 ssh2",
     "metadata": {
-      "auth_method": "password",
-      "simulation_tag": "demo_brute_force_attack"
+      "scenario": "SIMULATED-SCENARIO-A",
+      "description": "Brute force password spraying from external IP",
+      "threat_indicator": "198.51.100.42"
     }
   },
   {
@@ -33,8 +52,9 @@
     "severity": "medium",
     "message": "Failed password for admin from 198.51.100.42 port 49214 ssh2",
     "metadata": {
-      "auth_method": "password",
-      "simulation_tag": "demo_brute_force_attack"
+      "scenario": "SIMULATED-SCENARIO-A",
+      "description": "Brute force password spraying from external IP",
+      "threat_indicator": "198.51.100.42"
     }
   },
   {
@@ -52,8 +72,9 @@
     "severity": "medium",
     "message": "Failed password for svc-deploy from 198.51.100.42 port 49220 ssh2",
     "metadata": {
-      "auth_method": "password",
-      "simulation_tag": "demo_brute_force_attack"
+      "scenario": "SIMULATED-SCENARIO-A",
+      "description": "Brute force password spraying from external IP",
+      "threat_indicator": "198.51.100.42"
     }
   },
   {
@@ -71,9 +92,9 @@
     "severity": "high",
     "message": "Accepted password for svc-deploy from 198.51.100.42 port 49235 ssh2",
     "metadata": {
-      "auth_method": "password",
-      "flag": "potential_credential_compromise",
-      "prior_failures_detected": 3
+      "scenario": "SIMULATED-SCENARIO-B",
+      "description": "Compromised credential login after repeated SSH password attempts",
+      "threat_indicator": "198.51.100.42"
     }
   },
   {
@@ -89,9 +110,9 @@
     "severity": "critical",
     "message": "COMMAND=/bin/bash executed by user svc-deploy with sudo privileges",
     "metadata": {
-      "target_user": "root",
-      "terminal": "pts/2",
-      "threat_indicator": "unauthorized_interactive_root_shell"
+      "scenario": "SIMULATED-SCENARIO-C",
+      "description": "Unauthorized interactive root shell elevation",
+      "target_user": "root"
     }
   },
   {
@@ -105,8 +126,27 @@
     "severity": "high",
     "message": "New account 'backdoor_backup' created and added to group 'wheel'",
     "metadata": {
+      "scenario": "SIMULATED-SCENARIO-D",
+      "description": "Persistence account matching configured demo threat indicator",
       "added_groups": ["wheel", "sudo"],
-      "created_by": "root"
+      "threat_indicator": "backdoor_backup"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:10:00Z",
+    "event_type": "authentication",
+    "source": "okta_sso",
+    "source_ip": "10.0.3.22",
+    "destination_ip": "10.0.0.5",
+    "username": "alex.ops@company.local",
+    "hostname": "identity-cloud",
+    "action": "login",
+    "status": "success",
+    "severity": "low",
+    "message": "Routine SSO authentication via SAML for monitoring dashboard",
+    "metadata": {
+      "scenario": "SIMULATED-BENIGN",
+      "auth_method": "password_mfa"
     }
   },
   {
@@ -123,9 +163,8 @@
     "severity": "medium",
     "message": "Inbound SMB connection attempt from external untrusted IP blocked by policy 'DROP_INBOUND_SMB'",
     "metadata": {
-      "protocol": "TCP",
-      "rule": "DROP_INBOUND_SMB",
-      "interface": "wan1"
+      "scenario": "SIMULATED-BENIGN",
+      "rule": "DROP_INBOUND_SMB"
     }
   },
   {
@@ -140,9 +179,9 @@
     "severity": "medium",
     "message": "User Jane Analyst denied Okta Verify push challenge: 'Did not initiate request'",
     "metadata": {
-      "client_country": "DE",
-      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      "mfa_factor": "push_notification"
+      "scenario": "SIMULATED-SCENARIO-D",
+      "description": "Push fatigue attack matching configured demo IP indicator",
+      "threat_indicator": "203.0.113.195"
     }
   },
   {
@@ -157,26 +196,96 @@
     "severity": "critical",
     "message": "Suspicious process memory access into lsass.exe detected and terminated by Endpoint Agent",
     "metadata": {
-      "file_path": "C:\\Users\\c.engineer\\AppData\\Local\\Temp\\update_check.exe",
-      "hash_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "mitre_technique": "T1003.001 - OS Credential Dumping: LSASS Memory"
+      "scenario": "SIMULATED-BENIGN",
+      "description": "Endpoint prevention blocked malicious execution"
     }
   },
   {
-    "timestamp": "2026-09-24T10:25:40Z",
-    "event_type": "cloud_audit",
-    "source": "aws_cloudtrail",
-    "source_ip": "198.51.100.42",
-    "username": "deploy-agent-role",
-    "hostname": "aws:iam:us-east-1",
-    "action": "CreateAccessKey",
+    "timestamp": "2026-09-24T10:30:10Z",
+    "event_type": "authentication",
+    "source": "windows_event",
+    "source_ip": "198.51.100.101",
+    "destination_ip": "10.0.1.100",
+    "username": "Administrator",
+    "hostname": "DC-PRIMARY-01",
+    "action": "rdp_login",
+    "status": "failure",
+    "severity": "medium",
+    "message": "Failed RDP logon attempt for user Administrator from 198.51.100.101",
+    "metadata": {
+      "scenario": "SIMULATED-SCENARIO-A",
+      "description": "Windows Domain Controller RDP Brute Force",
+      "threat_indicator": "198.51.100.101"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:30:25Z",
+    "event_type": "authentication",
+    "source": "windows_event",
+    "source_ip": "198.51.100.101",
+    "destination_ip": "10.0.1.100",
+    "username": "Administrator",
+    "hostname": "DC-PRIMARY-01",
+    "action": "rdp_login",
+    "status": "failure",
+    "severity": "medium",
+    "message": "Failed RDP logon attempt for user Administrator from 198.51.100.101",
+    "metadata": {
+      "scenario": "SIMULATED-SCENARIO-A",
+      "threat_indicator": "198.51.100.101"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:30:40Z",
+    "event_type": "authentication",
+    "source": "windows_event",
+    "source_ip": "198.51.100.101",
+    "destination_ip": "10.0.1.100",
+    "username": "Administrator",
+    "hostname": "DC-PRIMARY-01",
+    "action": "rdp_login",
+    "status": "failure",
+    "severity": "medium",
+    "message": "Failed RDP logon attempt for user Administrator from 198.51.100.101",
+    "metadata": {
+      "scenario": "SIMULATED-SCENARIO-A",
+      "threat_indicator": "198.51.100.101"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:31:00Z",
+    "event_type": "authentication",
+    "source": "windows_event",
+    "source_ip": "198.51.100.101",
+    "destination_ip": "10.0.1.100",
+    "username": "helpdesk_temp",
+    "hostname": "DC-PRIMARY-01",
+    "action": "rdp_login",
     "status": "success",
     "severity": "high",
-    "message": "AWS IAM CreateAccessKey requested for user root-admin outside regular CI/CD automation pipeline",
+    "message": "Successful RDP logon for helpdesk_temp after prior failed attempts from untrusted WAN IP",
     "metadata": {
-      "api_service": "iam.amazonaws.com",
-      "user_identity_type": "AssumedRole",
-      "event_source": "iam.amazonaws.com"
+      "scenario": "SIMULATED-SCENARIO-B",
+      "description": "Compromised account successful logon following failures from same IP",
+      "threat_indicator": "198.51.100.101"
+    }
+  },
+  {
+    "timestamp": "2026-09-24T10:32:15Z",
+    "event_type": "privilege_change",
+    "source": "windows_event",
+    "source_ip": "10.0.1.100",
+    "destination_ip": "10.0.1.100",
+    "username": "helpdesk_temp",
+    "hostname": "DC-PRIMARY-01",
+    "action": "group_membership_add",
+    "status": "success",
+    "severity": "critical",
+    "message": "User helpdesk_temp added to Domain Admins security group",
+    "metadata": {
+      "scenario": "SIMULATED-SCENARIO-C",
+      "description": "Unauthorized elevation to Active Directory Domain Admins group",
+      "target_group": "Domain Admins"
     }
   }
 ]

@@ -1,23 +1,27 @@
 # SentinelOps AI — AI SOC Analyst & Incident Response Copilot
 
-SentinelOps AI is a portfolio-grade, production-structured Security Operations (SOC) platform designed to ingest security telemetry, detect malicious and suspicious behavior using an isolated deterministic engine, correlate security alerts into structured incidents, and empower security analysts with an evidence-grounded investigation copilot powered by Google Gemini.
+SentinelOps AI is a portfolio-grade, production-structured Security Operations (SOC) platform designed to ingest security telemetry, detect malicious and suspicious behavior using an isolated deterministic detection engine, correlate security alerts into structured incidents, and empower security analysts with an evidence-grounded investigation copilot powered by Google Gemini.
 
 ---
 
 ## Current Development Status
 
-**Phase 2: Security Event Ingestion & Data Model (COMPLETED)**
-* Phase 2 implements normalized security event schemas, PostgreSQL storage with JSONB and composite B-tree indexes, an intelligent multi-format normalizer supporting JSON and CSV telemetry logs, bounded file ingestion APIs, and a high-density SOC Event Explorer interface.
+**Phase 3: Deterministic Security Detection Engine (COMPLETED)**
+* Phase 3 introduces a modular, testable deterministic detection engine implementing Rules 001 through 005.
+* Introduces PostgreSQL `Alert` and `AlertEvidence` models linked via foreign keys to immutable `SecurityEvent` records.
+* Provides deterministic cryptographic deduplication (`dedup_key`), detection execution API (`POST /api/v1/detection/run`), alert query/stats APIs (`/api/v1/alerts`), and an interactive Frontend Alerts Explorer.
+* **Important:** Detection logic operates 100% independently of Google Gemini or LLMs. Gemini is introduced in Phase 5 strictly as a server-side investigation copilot.
 
 ---
 
 ## Architectural Principles
 
 1. **Modular Monolith:** Single unified repository avoiding microservice operational overhead and premature distributed architecture complexity.
-2. **Deterministic Detection Independence:** Detection rules run as pure deterministic Python modules. Security alerts are generated independent of LLM uptime or latency.
-3. **AI as an Investigation Copilot (Server-Side Only):** Gemini operates strictly on the backend as an analyst assistant (Phase 5). API keys are never exposed to the client.
-4. **Untrusted Telemetry Handling:** All ingested logs and security events are treated as potentially malicious or malformed, enforcing strict schema validation and sanitization.
-5. **Security-First Observability:** Built-in log sanitization redacts authorization tokens, bearer credentials, and API keys.
+2. **Deterministic Detection Independence:** Detection rules run as pure deterministic Python modules. Security alerts are generated independent of LLM uptime, hallucinations, or latency.
+3. **Evidence Grounding (Source of Truth):** Every generated alert is bound to immutable `SecurityEvent` records. The AI copilot will reason over verified evidence rather than fabricating events.
+4. **AI as an Investigation Copilot (Server-Side Only):** Gemini operates strictly on the backend as an analyst assistant (Phase 5). API keys are never exposed to the client.
+5. **Untrusted Telemetry Handling:** All ingested logs and security events are treated as potentially malicious or malformed, enforcing strict schema validation and sanitization.
+6. **Security-First Observability:** Built-in log sanitization redacts authorization tokens, bearer credentials, and API keys.
 
 ---
 
@@ -26,133 +30,217 @@ SentinelOps AI is a portfolio-grade, production-structured Security Operations (
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
 | **Backend** | Python 3.11, FastAPI, Pydantic v2 | High-performance asynchronous REST API, request validation |
-| **Database** | PostgreSQL 15, SQLAlchemy 2.0, Alembic | Relational storage for security events, incidents, and audit logs |
+| **Database** | PostgreSQL 15, SQLAlchemy 2.0, Alembic | Relational storage for security events, alerts, and evidence |
+| **Detection** | Modular Deterministic Engine (`DetectionEngine`) | Rules 001–005, sliding windows, deterministic deduplication |
 | **Normalizer** | Custom Python Engine with Dialect Sniffing | Normalizes heterogeneous JSON & CSV telemetry into canonical schemas |
-| **Frontend** | React 19 / Vite / TypeScript, Tailwind CSS v4 | High-fidelity SOC dashboard and diagnostic console |
-| **Testing** | Pytest, Pytest-Asyncio, HTTPX / TestClient | Backend API integration, validation, and security test coverage |
-| **AI (Phase 5)** | Google Gemini API (`@google/genai` / Python SDK) | Evidence-grounded incident investigation copilot |
+| **Frontend** | React 19 / Vite / TypeScript, Tailwind CSS v4 | High-fidelity SOC alerts queue, event explorer, and diagnostic console |
+| **Testing** | Pytest, Pytest-Asyncio, HTTPX / TestClient | Backend API integration, validation, and security test coverage (63 tests) |
+| **AI (Phase 5)**| Google Gemini API (`@google/genai` / Python SDK) | Evidence-grounded incident investigation copilot |
 
 ---
 
-## Normalized SecurityEvent Data Model
+## Detection Engine Architecture
 
-Each ingested log event is mapped into a normalized PostgreSQL schema (`security_events` table):
+The detection engine (`backend/app/detection/`) is designed with modularity, testability, and evidence traceability:
 
-| Field | Database Type | Description |
+```
+Security Events (PostgreSQL)
+       │
+       ▼
+DetectionContext (Chronological Telemetry + Decoupled Config)
+       │
+       ├──► RULE-001 (Brute Force Sliding Window)
+       ├──► RULE-002 (Success After Repeated Failures)
+       ├──► RULE-003 (Suspicious Privilege / Role Modification)
+       ├──► RULE-004 (Unusual Multi-Source Auth Pattern)
+       └──► RULE-005 (Configured Demo Threat Indicator Match)
+       │
+       ▼
+DetectionResult Candidates
+       │
+       ▼
+Deterministic Deduplication Engine (Cryptographic Signature Check)
+       │
+       ├──► New Alerts ────► Persisted to PostgreSQL (Alert + AlertEvidence)
+       └──► Existing ──────► Suppressed & Counted as Deduplicated
+```
+
+### Core Components
+* **`DetectionRule` (ABC):** Abstract base class encapsulating rule identification, default severity, evaluation logic, and evidence reference generation.
+* **`DetectionContext`:** Container providing chronologically sorted `SecurityEvent` records and configurable detection parameters.
+* **`DetectionResult`:** Standardized candidate alert emitted by a rule containing target entity, severity, narrative description, evidence references, and deduplication signature.
+* **`DetectionEngine`:** Coordinates rule execution, database transactions, and deterministic deduplication.
+
+---
+
+## Alert & Evidence Data Models
+
+### Alert Model (`alerts` table)
+| Column | Type | Index | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `VARCHAR(36)` | PK | UUID v4 alert identifier |
+| `rule_id` | `VARCHAR(64)` | Indexed | Rule identifier (e.g. `RULE-001`) |
+| `rule_name` | `VARCHAR(128)` | None | Human-readable rule name |
+| `title` | `VARCHAR(255)` | None | Descriptive alert headline |
+| `description` | `TEXT` | None | Objective explanation of observed activity |
+| `severity` | `VARCHAR(32)` | Indexed | Standardized level: `low`, `medium`, `high`, `critical` |
+| `status` | `VARCHAR(32)` | Indexed | Triage state: `new`, `in_review`, `dismissed`, `escalated` |
+| `dedup_key` | `VARCHAR(255)` | Unique Index | Deterministic SHA-256 hash enforcing database-level uniqueness |
+| `affected_user`| `VARCHAR(128)` | Indexed | Target account principal |
+| `affected_ip` | `VARCHAR(45)` | Indexed | Target or origin IP |
+| `affected_hostname` | `VARCHAR(128)` | Indexed | Target host or container |
+| `detected_at` | `TIMESTAMPTZ` | Indexed | UTC timestamp when the activity occurred |
+| `created_at` | `TIMESTAMPTZ` | Indexed | UTC timestamp when alert was generated |
+| `incident_id` | `VARCHAR(36)` | Indexed | Reserved for Phase 4 incident correlation |
+| `alert_metadata` | `JSONB` | None | Contextual metrics (thresholds, counts, matched values) |
+
+### Evidence Association (`alert_evidence` table)
+| Column | Type | Description |
 | :--- | :--- | :--- |
-| `id` | `VARCHAR(36)` (PK) | UUID v4 event identifier |
-| `timestamp` | `TIMESTAMPTZ` | UTC timestamp when the event occurred on the source asset (indexed) |
-| `event_type` | `VARCHAR(64)` | High-level classification (`authentication`, `network`, `privilege_change`, `cloud_audit`, etc.) |
-| `source` | `VARCHAR(64)` | Sensor or platform (`linux_auth`, `windows_event`, `okta_sso`, `palo_alto_fw`, etc.) |
-| `source_ip` | `VARCHAR(45)` | Originating IPv4 or IPv6 address (indexed) |
-| `destination_ip` | `VARCHAR(45)` | Target IPv4 or IPv6 address (indexed) |
-| `source_port` | `INTEGER` | Source port (1-65535) |
-| `destination_port` | `INTEGER` | Destination port (1-65535) |
-| `username` | `VARCHAR(128)` | Subject username or actor account (indexed) |
-| `user_id` | `VARCHAR(128)` | Subject UID, SID, or identity provider ID |
-| `hostname` | `VARCHAR(128)` | Machine hostname or asset identifier (indexed) |
-| `action` | `VARCHAR(64)` | Operation performed (`login`, `sudo`, `block`, `mfa_challenge`, etc.) |
-| `status` | `VARCHAR(32)` | Outcome (`success`, `failure`, `blocked`, `denied`, `unknown`) |
-| `severity` | `VARCHAR(32)` | Normalized severity (`critical`, `high`, `medium`, `low`, `info`) |
-| `message` | `TEXT` | Human-readable log summary message |
-| `raw_event` | `JSONB` | Full original unadulterated payload (preserves forensic fidelity) |
-| `event_metadata` | `JSONB` | Unmapped contextual attributes, tags, headers, and enrichment |
-| `created_at` | `TIMESTAMPTZ` | Ingestion timestamp into SentinelOps |
+| `id` | `VARCHAR(36)` (PK) | UUID v4 evidence record identifier |
+| `alert_id` | `VARCHAR(36)` (FK) | References `alerts.id` on delete CASCADE |
+| `event_id` | `VARCHAR(36)` (FK) | References `security_events.id` on delete CASCADE |
+| `evidence_role` | `VARCHAR(64)` | Role in detection (`trigger`, `preceding_failure`, `successful_login`, `privilege_escalation`, `indicator_match`) |
+| `description` | `TEXT` | Specific forensic explanation for this event reference |
+| `created_at` | `TIMESTAMPTZ` | Timestamp when association was created |
 
-### Database Indexes
-
-* Single-column B-tree indexes: `id`, `timestamp`, `event_type`, `source`, `source_ip`, `destination_ip`, `username`, `hostname`, `action`, `status`, `severity`.
-* Analytical composite indexes for future detection rules:
-  - `ix_security_events_user_time (username, timestamp)`: Fast brute-force credential abuse queries.
-  - `ix_security_events_src_ip_time (source_ip, timestamp)`: Fast origin IP scanning & anomaly queries.
-  - `ix_security_events_type_time (event_type, timestamp)`: High-speed temporal classification slices.
-  - `ix_security_events_status_time (status, timestamp)`: Rapid failure/success sequence checks.
+Unique constraint: `(alert_id, event_id)` prevents redundant evidence bindings.
 
 ---
 
-## Supported Telemetry Ingestion Formats
+## Implemented Detection Rules
 
-The ingestion engine accepts both JSON and CSV payloads. The normalizer automatically maps common vendor field aliases:
+### RULE 001: Brute Force Authentication Attempt
+* **Objective:** Detects repeated failed authentication attempts targeting the same account or originating from the same source IP within a sliding observation window.
+* **Default Threshold:** `≥ 3` failed logins.
+* **Default Window:** `15` minutes.
+* **Dynamic Severity:** `MEDIUM` for `≥ 3` failures; escalated to `HIGH` for `≥ 6` failures.
+* **Evidence:** Links all failed authentication attempts within the window.
 
-### 1. JSON Format Example
-```json
-[
+### RULE 002: Successful Login After Repeated Failures
+* **Objective:** Detects a successful authentication event preceded by multiple failed attempts for the same username or source IP within a lookback window, indicative of password guessing or credential cracking.
+* **Default Threshold:** `≥ 2` preceding failed attempts.
+* **Default Window:** `30` minutes prior to the successful login.
+* **Severity:** `HIGH`.
+* **Evidence:** Links all preceding failure events plus the pivotal successful authentication event.
+
+### RULE 003: Suspicious Privilege or Role Modification
+* **Objective:** Detects administrative group membership modifications, privileged role assignments, or direct root/sudo elevation commands.
+* **Criteria:** Identifies sensitive actions (`sudo`, `group_membership_add`, `privilege_escalation`) and sensitive targets (`Domain Admins`, `wheel`, `root`, `administrators`).
+* **Severity:** `CRITICAL` for high-impact targets (`Domain Admins`, `root`, `/bin/bash` interactive shells) on success; `HIGH` for standard role assignments; `MEDIUM` for failed attempts.
+* **Evidence:** Links the specific privilege modification event.
+
+### RULE 004: Unusual Multi-Source Authentication Pattern
+* **Objective:** Detects when a single user account is accessed from multiple distinct source IPs within a short observation window, indicating concurrent session hijacking or distributed credential abuse.
+* **Default Threshold:** `≥ 2` distinct source IPs.
+* **Default Window:** `60` minutes.
+* **Severity:** `MEDIUM`.
+* **Integrity Guard:** Strictly grounded in observable IP telemetry. Zero fabricated geographic or behavioral intelligence.
+* **Evidence:** Links all authentication events across the distinct source IPs.
+
+### RULE 005: Configured Threat Indicator Match [Simulated IOC]
+* **Objective:** Detects telemetry matching explicitly configured demonstration indicators (simulated external attacker IPs, persistence accounts, malicious domains).
+* **Configured Demo Indicators:**
+  - Demo IPs: `198.51.100.101`, `198.51.100.42`, `203.0.113.195`
+  - Demo Usernames: `backdoor_backup`
+  - Demo Hostnames: `c2-beacon.attacker.local`, `bad-external.domain.test`
+* **Severity:** `HIGH` for active/successful events; `MEDIUM` for blocked/prevented events.
+* **Transparency:** Clearly tagged as `[Simulated IOC]` to maintain forensic credibility.
+* **Evidence:** Links the matching event with matched indicator type and value.
+
+---
+
+## Deterministic Deduplication Strategy
+
+To prevent alert flooding, SentinelOps AI enforces a deterministic deduplication algorithm:
+1. Each detection rule generates a cryptographic SHA-256 signature (`dedup_key`) based on:
+   - Rule ID
+   - Target entity (username and/or source IP)
+   - Sorted list of primary trigger event IDs or time bucket
+2. When the detection sweep evaluates candidates:
+   - Queries existing `alerts.dedup_key` in the database.
+   - Any candidate matching an existing key is filtered out as deduplicated.
+   - Intra-run duplicates are also suppressed.
+3. Database enforcement: A `UNIQUE INDEX` on `alerts.dedup_key` guarantees that duplicates can never be inserted even under race conditions.
+
+---
+
+## Detection & Alert API Reference
+
+### Detection Execution
+* `POST /api/v1/detection/run`:
+  ```json
+  // Request
   {
-    "timestamp": "2026-09-24T10:01:15Z",
-    "event_type": "authentication",
-    "source": "linux_auth",
-    "source_ip": "198.51.100.42",
-    "destination_ip": "10.0.1.15",
-    "source_port": 49210,
-    "destination_port": 22,
-    "username": "root",
-    "hostname": "prod-bastion-01",
-    "action": "login",
-    "status": "failure",
-    "severity": "medium",
-    "message": "Failed password for root from 198.51.100.42 port 49210 ssh2"
+    "time_window_minutes": 60,
+    "limit": 1000
   }
-]
-```
+  
+  // Response
+  {
+    "events_evaluated": 24,
+    "rules_executed": 5,
+    "alerts_generated": 4,
+    "alerts_deduplicated": 0,
+    "execution_duration_ms": 12.4,
+    "generated_alert_ids": ["..."],
+    "rule_breakdown": {
+      "RULE-001": 1,
+      "RULE-002": 1,
+      "RULE-003": 1,
+      "RULE-004": 0,
+      "RULE-005": 1
+    },
+    "executed_at": "2026-09-24T18:38:25Z"
+  }
+  ```
 
-### 2. CSV Format Example
-```csv
-timestamp,event_type,source,source_ip,destination_ip,source_port,destination_port,username,hostname,action,status,severity,message
-2026-09-24T10:30:10Z,authentication,windows_event,198.51.100.101,10.0.1.100,52341,3389,Administrator,DC-PRIMARY-01,rdp_login,failure,medium,Failed RDP logon attempt
-```
-
-Supported alias mappings include:
-- `timestamp`: `@timestamp`, `event_time`, `datetime`, `time`, `date`, `logged_at`
-- `source_ip`: `src_ip`, `src`, `client_ip`, `remote_ip`, `origin_ip`, `ip`
-- `username`: `user`, `account`, `actor`, `subject`, `user_name`, `target_user`
-- `action`: `activity`, `operation`, `event`, `command`, `method`
-- `status`: `outcome`, `result`, `state`, `verdict`
-
----
-
-## Ingestion & Retrieval API Reference
-
-### Ingestion Endpoints
-* `POST /api/v1/events/import`: Multipart form upload supporting `.json` and `.csv` files (up to 10MB).
-* `POST /api/v1/events/batch`: Ingest a JSON array of up to 5,000 log records directly in request body.
-* `POST /api/v1/events`: Ingest a single validated event.
-
-### Query & Analytics Endpoints
-* `GET /api/v1/events`: Paginated event explorer query with filtering:
-  - Query parameters: `page`, `page_size`, `search`, `severity`, `status`, `event_type`, `source`, `username`, `source_ip`, `destination_ip`, `start_time`, `end_time`.
-* `GET /api/v1/events/{event_id}`: Retrieve individual event with raw payload and metadata.
-* `GET /api/v1/events/stats/summary`: Aggregate counts by severity, outcome status, and top telemetry sources.
+### Alerts Management
+* `GET /api/v1/alerts`: List alerts with pagination and filtering (`severity`, `status`, `rule_id`, `search`, `start_time`, `end_time`).
+* `GET /api/v1/alerts/stats`: Return aggregated counts by severity, status, and triggering rule.
+* `GET /api/v1/alerts/{alert_id}`: Retrieve alert details with full evidence timeline and underlying `SecurityEvent` JSON payloads.
+* `PATCH /api/v1/alerts/{alert_id}/status`: Update triage status (`new`, `in_review`, `dismissed`, `escalated`).
 
 ---
 
-## Security Safeguards
+## Simulated Attack Scenarios
 
-1. **Upload Size Bounds:** 10MB chunked streaming prevents memory exhaustion and denial-of-service.
-2. **Untrusted Data Isolation:** Malicious input strings (SQL injection fragments, HTML/script tags, directory traversal attempts) are stored as inert data without evaluation.
-3. **Path Traversal Resistance:** Uploaded filenames are never written to the host filesystem.
-4. **Log Sanitization:** Sensitive credentials (passwords, bearer tokens, API keys) are masked before logs are emitted.
-5. **Partial Import Accounting:** Malformed rows in large logs are isolated with error details without dropping valid events.
+The simulated demo dataset (`data/demo_security_events.json`) contains reproducible scenarios:
+
+* **Scenario A (Brute Force):** Repeated failed SSH and RDP logins targeting `root`, `admin`, and `Administrator` from external attacker IPs (`198.51.100.42`, `198.51.100.101`). Triggers **RULE-001** and **RULE-005**.
+* **Scenario B (Compromise After Failures):** Successful RDP logon for `helpdesk_temp` from `198.51.100.101` after prior repeated failed attempts on the same host. Triggers **RULE-002**.
+* **Scenario C (Privilege Escalation):** Interactive root shell (`sudo /bin/bash`) by `svc-deploy`, and `helpdesk_temp` added to Active Directory `Domain Admins`. Triggers **RULE-003**.
+* **Scenario D (Configured Demo Indicator Match):** Access by configured simulated persistence account `backdoor_backup`, and push fatigue from untrusted IP `203.0.113.195`. Triggers **RULE-005**.
+* **Benign Telemetry (False Positive Control):** Routine SAML logins (`sarah.dev`, `alex.ops`), legitimate firewall blocks, and endpoint EDR blocks that do NOT generate spurious alerts.
+
+---
+
+## Honest System Limitations
+
+* **Deterministic Scope:** The detection engine relies strictly on defined thresholds and patterns. It does not perform unsupervised behavioral anomaly detection or dynamic graph clustering (deferred to future phases).
+* **Zero Autonomous Action:** The system alerts and surfaces evidence; it does not block IPs, terminate accounts, or modify firewall policies.
+* **Demo Indicator Scope:** Threat indicators are pre-configured demo values. The system does not currently ingest live external threat intelligence feeds (STIX/TAXII).
 
 ---
 
 ## Automated Test Suite
 
-SentinelOps AI maintains a comprehensive Pytest suite:
+SentinelOps AI maintains a comprehensive suite of **63 tests**:
 
 ```bash
 # Run the complete test suite
 pytest backend/
 
-# Run tests via npm script
+# Or via npm script
 npm run test:backend
 ```
 
-Tests cover:
-* Database persistence and Alembic migrations.
-* Pydantic schema validation (timestamps, IPv4/IPv6, ports, severity normalization).
-* JSON and CSV file ingestion and parser resilience.
-* Multi-parameter query filtering and pagination.
-* Security tests verifying SQL injection and path traversal resistance.
+### Test Coverage Breakdown:
+* **Detection Rules (`test_detection_rules.py`):** Positive, negative, boundary, timing, missing-field, and multi-user isolation cases for Rules 001–005.
+* **Detection Engine (`test_detection_engine.py`):** Multi-rule orchestration, atomic persistence, second-run deduplication verification (0 duplicate alerts), and empty dataset safety.
+* **Alerts API (`test_alerts_api.py`):** Detection execution endpoint, paginated listing, severity filtering, statistics aggregation, full evidence retrieval, and status updates.
+* **Detection Security (`test_detection_security.py`):** SQL injection resilience in event message/username/action fields, search parameter parameterization, and XSS string inertness.
+* **Ingestion & Validation (`test_events_*.py`):** Schema normalization, JSON/CSV parsing, and oversized upload rejection.
 
 ---
 
@@ -160,9 +248,9 @@ Tests cover:
 
 * [x] **Phase 1: Foundation & Architecture** (Completed)
 * [x] **Phase 2: Event Ingestion & Data Model** (Completed)
-* [ ] **Phase 3: Deterministic Detection Engine** (Brute-force, privilege escalation, rule execution)
-* [ ] **Phase 4: Incident Correlation & Dashboard** (Alert aggregation, attack timelines)
-* [ ] **Phase 5: Gemini Investigation Copilot** (Evidence-grounded summaries, hypothesis testing)
-* [ ] **Phase 6: Case Management & Reports** (Status transitions, analyst audit trail, export)
+* [x] **Phase 3: Deterministic Detection Engine** (Completed)
+* [ ] **Phase 4: Incident Correlation & SOC Dashboard** (Alert aggregation, incident graph, attack timelines)
+* [ ] **Phase 5: Gemini Investigation Copilot** (Evidence-grounded hypothesis testing, copilot chat)
+* [ ] **Phase 6: Case Management & Reports** (Executive summary generation, timeline export)
 * [ ] **Phase 7: Security Audit, Testing & Polish**
 * [ ] **Phase 8: Deployment & Portfolio Release**
