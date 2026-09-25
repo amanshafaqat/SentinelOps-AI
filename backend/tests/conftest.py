@@ -23,7 +23,7 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 from backend.app.main import create_application
 from backend.app.db.base import Base
 from backend.app.db.session import get_db
-from backend.app.models import SecurityEvent, Alert, AlertEvidence
+from backend.app.models import SecurityEvent, Alert, AlertEvidence, Incident, IncidentAuditLog
 
 
 @pytest.fixture(scope="session")

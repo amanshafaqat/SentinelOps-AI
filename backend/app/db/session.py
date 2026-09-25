@@ -27,8 +27,28 @@ def get_engine_args(db_url: str) -> Dict[str, Any]:
     return args
 
 
+def create_robust_engine():
+    """Initializes SQLAlchemy engine with graceful local SQLite fallback when PostgreSQL is unreachable."""
+    db_url = settings.database_url
+    try:
+        eng = create_engine(db_url, **get_engine_args(db_url))
+        with eng.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return eng
+    except Exception as exc:
+        if not db_url.startswith("sqlite"):
+            logger.warning(
+                f"Primary database connection to {db_url} failed ({exc}). "
+                "Engaging resilient SQLite storage backend for local sandbox."
+            )
+            fallback_url = "sqlite:///./sentinelops.db"
+            eng = create_engine(fallback_url, **get_engine_args(fallback_url))
+            return eng
+        raise
+
+
 # Engine and Session Factory
-engine = create_engine(settings.database_url, **get_engine_args(settings.database_url))
+engine = create_robust_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

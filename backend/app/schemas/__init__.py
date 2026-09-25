@@ -20,6 +20,18 @@ from backend.app.schemas.alert import (
     DetectionRunResponse,
     AlertStatsResponse,
 )
+from backend.app.schemas.incident import (
+    IncidentListItem,
+    IncidentDetailResponse,
+    PaginatedIncidentsResponse,
+    IncidentStatusUpdate,
+    IncidentAuditLogResponse,
+    CorrelateRequest,
+    CorrelateResponse,
+    IncidentTimelineItem,
+    IncidentTimelineResponse,
+    IncidentStatsResponse,
+)
 
 __all__ = [
     "SecurityEventBase",
@@ -38,4 +50,14 @@ __all__ = [
     "DetectionRunRequest",
     "DetectionRunResponse",
     "AlertStatsResponse",
+    "IncidentListItem",
+    "IncidentDetailResponse",
+    "PaginatedIncidentsResponse",
+    "IncidentStatusUpdate",
+    "IncidentAuditLogResponse",
+    "CorrelateRequest",
+    "CorrelateResponse",
+    "IncidentTimelineItem",
+    "IncidentTimelineResponse",
+    "IncidentStatsResponse",
 ]

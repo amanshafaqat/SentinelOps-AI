@@ -126,12 +126,18 @@ class Alert(Base):
         doc="UTC timestamp when the alert record was created by the engine",
     )
 
-    # Phase 4 Forward-Compatibility: Correlation container ID
+    # Phase 4: Correlation container ID
     incident_id: Mapped[Optional[str]] = mapped_column(
         String(36),
+        ForeignKey("incidents.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         doc="Incident ID if correlated in Phase 4",
+    )
+
+    incident: Mapped[Optional["backend.app.models.incident.Incident"]] = relationship(
+        "backend.app.models.incident.Incident",
+        back_populates="alerts",
     )
 
     # Contextual metadata (rule parameters, threshold metrics, match details)

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   ShieldAlert,
@@ -15,6 +15,7 @@ import {
   Info,
   Layers,
   ArrowRight,
+  Loader2,
 } from 'lucide-react';
 
 export interface SecurityEventDetail {
@@ -66,23 +67,91 @@ export interface AlertDetail {
   evidence: AlertEvidenceItem[];
 }
 
-interface AlertDetailsModalProps {
-  alert: AlertDetail | null;
-  isOpen: boolean;
+export interface AlertDetailsModalProps {
+  alert?: AlertDetail | null;
+  alertId?: string | null;
+  isOpen?: boolean;
   onClose: () => void;
   onStatusUpdate?: (alertId: string, newStatus: string) => Promise<void>;
 }
 
 export const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({
-  alert,
-  isOpen,
+  alert: propAlert,
+  alertId,
+  isOpen = true,
   onClose,
   onStatusUpdate,
 }) => {
+  const [internalAlert, setInternalAlert] = useState<AlertDetail | null>(propAlert || null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  if (!isOpen || !alert) return null;
+  useEffect(() => {
+    if (propAlert) {
+      setInternalAlert(propAlert);
+      return;
+    }
+
+    if (alertId) {
+      setLoading(true);
+      setFetchError(null);
+      fetch(`/api/v1/alerts/${alertId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+          return res.json();
+        })
+        .then((data: AlertDetail) => {
+          setInternalAlert(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          setFetchError(err.message || 'Failed to fetch alert details');
+          setLoading(false);
+        });
+    } else {
+      setInternalAlert(null);
+    }
+  }, [propAlert, alertId]);
+
+  if (!isOpen) return null;
+  if (!propAlert && !alertId) return null;
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 flex flex-col items-center gap-3 text-slate-300">
+          <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+          <p className="text-sm font-mono">Loading alert evidence and telemetry...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError || !internalAlert) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-semibold text-rose-400">Failed to Load Alert</h3>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mb-4">{fetchError || 'Alert not found'}</p>
+          <button
+            onClick={onClose}
+            className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const alert = internalAlert;
 
   const getSeverityBadge = (severity: string) => {
     switch (severity.toLowerCase()) {

@@ -34,6 +34,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     logger.info(f"API v1 mounted at: {settings.api_v1_prefix}")
 
+    # Auto-initialize database tables
+    try:
+        from backend.app.db.base import Base
+        from backend.app.db.session import engine, SessionLocal
+        import backend.app.models  # Ensures all models registered
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database schema verified and initialized.")
+
+        # Seed initial demo pipeline if no events exist
+        with SessionLocal() as db:
+            from backend.app.models.event import SecurityEvent
+            from backend.app.services.demo_seeder import seed_demo_pipeline
+            count = db.query(SecurityEvent).count()
+            if count == 0:
+                logger.info("Empty database detected. Seeding Phase 4 demo scenarios...")
+                seed_demo_pipeline(db=db, force_reset=False)
+                logger.info("Phase 4 demo dataset successfully provisioned.")
+    except Exception as exc:
+        logger.warning(f"Database schema auto-creation encountered notice: {exc}")
+
     yield
 
     logger.info(f"Shutting down {settings.app_name} gracefully.")
