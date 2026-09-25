@@ -35,8 +35,8 @@ async def get_system_info() -> SystemInfoResponse:
         name=settings.app_name,
         version=settings.app_version,
         environment=settings.app_env,
-        current_phase="Phase 4",
-        phase_title="Incident Correlation & SOC Analyst Dashboard",
+        current_phase="Phase 5",
+        phase_title="Gemini Investigation Copilot",
         architecture={
             "style": "Modular Monolith",
             "backend": "FastAPI + Pydantic v2",
@@ -44,15 +44,16 @@ async def get_system_info() -> SystemInfoResponse:
             "frontend": "React / TypeScript + Tailwind CSS",
             "detection_engine": "Deterministic Python (Isolated from LLM)",
             "correlation_engine": "Deterministic & Explainable Graph/Window Engine",
-            "ai_copilot": "Gemini API (Server-Side Only, Phase 5)",
+            "ai_copilot": f"Gemini ({settings.gemini_model}) Server-Side Evidence-Grounded Copilot",
         },
         security_features=[
-            "Zero client-side AI keys",
-            "Sanitized structured logging (redacts secrets)",
+            "Zero client-side AI keys (server-side proxy only)",
+            "Strict prompt injection defense with delimited untrusted data boundary",
+            "Deterministic evidence-grounding cross-reference validation",
+            "Sanitized structured logging (redacts secrets & tokens)",
             "Strict CORS origin validation",
-            "Structured error response envelopes",
-            "Untrusted log data handling architecture",
-            "Audited SOC Incident Lifecycle Mutations",
+            "Structured error response envelopes (never leaking stack traces)",
+            "Audited SOC Incident Lifecycle & AI Investigation Records",
         ],
     )
 

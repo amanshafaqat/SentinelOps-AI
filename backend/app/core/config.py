@@ -53,9 +53,14 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", description="JWT signing algorithm")
     access_token_expire_minutes: int = Field(default=60, description="Access token expiration in minutes")
 
-    # Gemini AI Configuration (Backend-only, future Phase 5)
+    # Gemini AI Configuration (Backend-only, Phase 5 Investigation Copilot)
     gemini_api_key: str = Field(default="", description="Gemini API Key - server side only")
-    gemini_model: str = Field(default="gemini-2.5-flash", description="Default Gemini model")
+    gemini_model: str = Field(default="gemini-3.8-flash", description="Configured Gemini model identifier")
+    gemini_timeout_seconds: float = Field(default=30.0, description="Gemini API request timeout in seconds")
+    gemini_max_output_tokens: int = Field(default=4096, description="Max output tokens for response generation")
+    gemini_temperature: float = Field(default=0.2, description="Sampling temperature for deterministic, factual analysis")
+    gemini_max_context_events: int = Field(default=50, description="Maximum supporting events in prompt context")
+    gemini_rate_limit_per_minute: int = Field(default=30, description="Max Gemini requests per minute per IP")
 
     @field_validator("cors_origins", mode="before")
     @classmethod

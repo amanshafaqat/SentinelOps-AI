@@ -32,6 +32,13 @@ from backend.app.schemas.incident import (
     IncidentTimelineResponse,
     IncidentStatsResponse,
 )
+from backend.app.schemas.investigation import (
+    EvidenceReferenceItem,
+    IncidentInvestigationAnalysis,
+    AnalystQuestionRequest,
+    AnalystQuestionResponse,
+    InvestigationStatusResponse,
+)
 
 __all__ = [
     "SecurityEventBase",
@@ -60,4 +67,9 @@ __all__ = [
     "IncidentTimelineItem",
     "IncidentTimelineResponse",
     "IncidentStatsResponse",
+    "EvidenceReferenceItem",
+    "IncidentInvestigationAnalysis",
+    "AnalystQuestionRequest",
+    "AnalystQuestionResponse",
+    "InvestigationStatusResponse",
 ]
