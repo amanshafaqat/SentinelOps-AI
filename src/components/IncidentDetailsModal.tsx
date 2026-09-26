@@ -23,8 +23,11 @@ import {
   Flame,
   Check,
   Edit3,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 import { AlertDetail } from './AlertDetailsModal';
+import { IncidentInvestigationPanel } from './IncidentInvestigationPanel';
 
 export interface IncidentAuditItem {
   id: string;
@@ -88,7 +91,7 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'alerts' | 'correlation' | 'audit'>('timeline');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'alerts' | 'correlation' | 'copilot' | 'audit'>('copilot');
 
   // Status mutation state
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -276,13 +279,27 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
               </h2>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
-            title="Close modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setActiveTab('copilot')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all flex items-center gap-1.5 shadow-sm border ${
+                activeTab === 'copilot'
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-indigo-900/40'
+                  : 'bg-indigo-950/60 hover:bg-indigo-900/70 text-indigo-300 border-indigo-800/80'
+              }`}
+              title="Open Gemini AI Copilot"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+              <span>AI Copilot</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+              title="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Error Banner */}
@@ -435,6 +452,20 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
 
               {/* Navigation Tabs */}
               <div className="flex items-center gap-2 border-b border-slate-800">
+                <button
+                  onClick={() => setActiveTab('copilot')}
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
+                    activeTab === 'copilot'
+                      ? 'border-indigo-400 text-indigo-400'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Bot className="w-3.5 h-3.5 text-indigo-400" />
+                  Gemini Copilot
+                  <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800/80">
+                    AI
+                  </span>
+                </button>
                 <button
                   onClick={() => setActiveTab('timeline')}
                   className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
@@ -861,6 +892,16 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Tab: Gemini AI Investigation Copilot */}
+              {activeTab === 'copilot' && (
+                <IncidentInvestigationPanel
+                  incidentId={incident.id}
+                  incidentTitle={incident.title}
+                  incidentSeverity={incident.severity}
+                  onSelectAlert={onSelectAlert}
+                />
               )}
             </>
           )}

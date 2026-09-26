@@ -6,7 +6,7 @@ and atomic persistence of generated Alert and AlertEvidence records into Postgre
 
 import time
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import select

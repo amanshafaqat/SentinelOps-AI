@@ -249,8 +249,81 @@ npm run test:backend
 * [x] **Phase 1: Foundation & Architecture** (Completed)
 * [x] **Phase 2: Event Ingestion & Data Model** (Completed)
 * [x] **Phase 3: Deterministic Detection Engine** (Completed)
-* [ ] **Phase 4: Incident Correlation & SOC Dashboard** (Alert aggregation, incident graph, attack timelines)
-* [ ] **Phase 5: Gemini Investigation Copilot** (Evidence-grounded hypothesis testing, copilot chat)
+* [x] **Phase 4: Incident Correlation & SOC Dashboard** (Completed)
+* [x] **Phase 5: Gemini Investigation Copilot** (Completed)
 * [ ] **Phase 6: Case Management & Reports** (Executive summary generation, timeline export)
 * [ ] **Phase 7: Security Audit, Testing & Polish**
 * [ ] **Phase 8: Deployment & Portfolio Release**
+
+---
+
+## Phase 4: Incident Correlation & SOC Dashboard
+
+Phase 4 bridges discrete detection alerts into correlated, forensic incidents:
+* **PostgreSQL Incident Model:** `Incident` and `IncidentAuditLog` tracking lifecycle (`NEW`, `INVESTIGATING`, `RESOLVED`, `CLOSED`), severity (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), first/last seen, affected entities, and full correlation metadata.
+* **Deterministic Correlation Engine:** Evaluates unassociated alerts against open incidents using explainable signals (same username, same source IP, configurable sliding temporal proximity window, multi-stage attack progression).
+* **Transparent Severity Calculation:** Deterministically computes incident severity based on alert counts and progression without claiming certainty of compromise.
+* **Unified Chronological Timeline:** Interweaves raw Security Events, Alerts, and Analyst Audit Actions.
+
+---
+
+## Phase 5: Gemini Investigation Copilot
+
+Phase 5 introduces a secure, evidence-grounded AI investigation assistant to SentinelOps.
+
+```
+Security Events
+       │
+       ▼
+Detection Engine (Deterministic Rules)
+       │
+       ▼
+Correlated Incident (Explainable Graph/Window Engine)
+       │
+       ▼
+Bounded & Sanitized Telemetry Context (XML Boundary)
+       │
+       ▼
+FastAPI Server-Side Proxy (Zero Client-Side Keys)
+       │
+       ▼
+Gemini Investigation Copilot (models/gemini-3.8-flash)
+       │
+       ▼
+Structured Response Validation & Grounding Cross-Reference
+       │
+       ▼
+Analyst Copilot Interface (Advisory Hypotheses, Evidence Citations & Q&A)
+```
+
+### Core Architecture & Design Directives
+1. **Advisory Role Only:** Gemini is strictly an investigation **assistant**. It is **not** the source of truth for detection, never generates security events, never modifies evidence, and never executes automated remediation.
+2. **Server-Side Only:** The Gemini API is accessed strictly via backend proxy routes (`/api/v1/incidents/{id}/analyze` and `/api/v1/incidents/{id}/ask`). The `GEMINI_API_KEY` is never transmitted to the browser.
+3. **Evidence-First Context Building:** Telemetry is bounded and sanitized by `InvestigationContextBuilder`. When incidents contain large event volumes, repetitive events are summarized deterministically and high-priority triggers are preserved to stay within token budgets.
+4. **Prompt Injection Defense:** External security logs are treated as untrusted data and strictly encapsulated within `<untrusted_evidence>` XML boundaries. The system instructions explicitly command the model to ignore directives embedded inside usernames, user agents, or log messages. Internal credentials and JWT tokens are automatically redacted.
+5. **Deterministic Grounding Verification:** The backend `InvestigationResponseValidator` cross-references every evidence ID cited by Gemini against an authoritative incident telemetry catalog. Any hallucinated ID is flagged as `valid=False` (`[UNVERIFIED]`).
+6. **Graceful Failure Handling:** If Gemini is unavailable, unconfigured, rate-limited, or times out, the deterministic SOC dashboard, detection rules, and incident correlation remain fully functional. User-facing error messages are clean and never expose internal stack traces or API keys.
+7. **Immutable Audit Trail:** All AI analyses, analyst inquiries, and model identifiers are persisted to `incident_ai_analyses` and `incident_audit_logs`.
+
+### Configuration Variables (`.env`)
+```bash
+GEMINI_API_KEY="your-api-key"
+GEMINI_MODEL="gemini-3.8-flash"
+GEMINI_TIMEOUT_SECONDS=30.0
+GEMINI_MAX_OUTPUT_TOKENS=4096
+GEMINI_TEMPERATURE=0.2
+GEMINI_MAX_CONTEXT_EVENTS=50
+GEMINI_RATE_LIMIT_PER_MINUTE=30
+```
+
+### Structured Output Schema
+Gemini responses are strictly parsed into typed Pydantic models:
+* `summary`: Concise forensic narrative of observed activity.
+* `observed_facts`: Factual events directly corroborated by telemetry.
+* `potential_explanations`: Hypotheses covering both malicious attack vectors and benign administrative explanations.
+* `evidence_references`: Traceable citations referencing specific event or alert IDs.
+* `missing_information`: Identified telemetry gaps and blind spots.
+* `recommended_next_steps`: Actionable manual investigation steps for the human analyst.
+* `uncertainty_assessment`: Explicit statement of analytical confidence boundaries.
+
+> **Advisory Notice:** AI-generated analysis is advisory and must be reviewed by a human analyst. Deterministic telemetry remains the primary source of truth.

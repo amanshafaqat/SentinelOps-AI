@@ -129,6 +129,18 @@ class GeminiClient:
                     headers={"Content-Type": "application/json"},
                 )
 
+                if response.status_code in (404, 503) and self.model != "gemini-flash-latest":
+                    logger.warning("Gemini model %s returned HTTP %s. Attempting fallback to gemini-flash-latest", self.model, response.status_code)
+                    fallback_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+                    fallback_resp = await client.post(
+                        fallback_url,
+                        params=params,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                    )
+                    if fallback_resp.status_code == 200:
+                        return self._handle_response(fallback_resp)
+
                 return self._handle_response(response)
 
         except httpx.TimeoutException as exc:

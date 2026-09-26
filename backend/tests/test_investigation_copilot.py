@@ -185,6 +185,7 @@ def test_context_builder_caps_context_and_summarizes_repetition(db_session: Sess
             status="failure",
             severity="low",
             message=f"Repeat failure attempt #{i}",
+            raw_event={"ip": "198.51.100.44", "user": "root", "attempt": i},
         )
         db_session.add(ev)
         db_session.flush()

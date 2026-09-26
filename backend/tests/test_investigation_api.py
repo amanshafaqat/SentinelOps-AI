@@ -73,7 +73,6 @@ def seed_test_incident(db: Session) -> Incident:
         affected_user="admin",
         affected_ip="203.0.113.195",
         detected_at=now,
-        evidence_count=1,
     )
     db.add(alert)
     db.flush()
@@ -90,6 +89,7 @@ def seed_test_incident(db: Session) -> Incident:
         status="success",
         severity="critical",
         message="User admin granted wheel privileges",
+        raw_event={"ip": "203.0.113.195", "user": "admin", "action": "grant"},
     )
     db.add(ev)
     db.flush()
@@ -125,7 +125,7 @@ def test_investigation_status_never_exposes_api_key(client: TestClient):
 
 def test_analyze_incident_endpoint_success(client: TestClient, db_session: Session):
     incident = seed_test_incident(db_session)
-    valid_ev_id = incident.alerts[0].evidence_items[0].event_id
+    valid_ev_id = incident.alerts[0].evidence[0].event_id
 
     mock_gemini_output = json.dumps({
         "summary": "Privilege escalation activity observed on prod-db-01 by admin account.",
