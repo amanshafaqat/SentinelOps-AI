@@ -5,10 +5,12 @@ with complete Incident -> Alert -> Security Event traceability, unified chronolo
 and audited analyst triage updates.
 """
 
+import uuid
 from datetime import datetime, timezone
 import math
-from typing import Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import Any, Dict, List, Optional, Set
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Path, Response
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, select, desc
 
@@ -17,7 +19,7 @@ from backend.app.core.logging import logger
 from backend.app.db.session import get_db
 from backend.app.models.alert import Alert, AlertEvidence
 from backend.app.models.event import SecurityEvent
-from backend.app.models.incident import Incident, IncidentAuditLog
+from backend.app.models.incident import Incident, IncidentAuditLog, CaseNote, InvestigationReport
 from backend.app.correlation.engine import default_correlation_engine
 from backend.app.schemas.alert import AlertResponse
 from backend.app.schemas.incident import (
@@ -32,11 +34,29 @@ from backend.app.schemas.incident import (
     IncidentTimelineResponse,
     PaginatedIncidentsResponse,
 )
+from backend.app.schemas.case import (
+    CaseNoteCreate,
+    CaseNoteUpdate,
+    CaseNoteResponse,
+    CaseNoteListResponse,
+    InvestigationReportCreate,
+    InvestigationReportListItem,
+    InvestigationReportListResponse,
+    InvestigationReportResponse,
+)
+from backend.app.services.report_generator import ReportGeneratorService
 
 router = APIRouter()
 
 VALID_STATUSES = {"new", "investigating", "resolved", "closed"}
 VALID_SEVERITIES = {"low", "medium", "high", "critical"}
+
+ALLOWED_STATUS_TRANSITIONS: Dict[str, Set[str]] = {
+    "new": {"investigating", "resolved", "closed"},
+    "investigating": {"resolved", "closed", "new"},
+    "resolved": {"closed", "investigating"},
+    "closed": {"investigating"},
+}
 
 
 @router.post(
@@ -249,6 +269,8 @@ def get_incident(
         .options(
             joinedload(Incident.alerts).joinedload(Alert.evidence),
             joinedload(Incident.audit_logs),
+            joinedload(Incident.notes),
+            joinedload(Incident.reports),
         )
         .where(Incident.id == incident_id)
     )
@@ -294,6 +316,32 @@ def get_incident(
         for log in sorted(incident.audit_logs, key=lambda l: l.created_at, reverse=True)
     ]
 
+    note_responses = [
+        CaseNoteResponse(
+            id=n.id,
+            incident_id=n.incident_id,
+            author=n.author,
+            content=n.content,
+            created_at=n.created_at.isoformat() if n.created_at else "",
+            updated_at=n.updated_at.isoformat() if n.updated_at else "",
+        )
+        for n in sorted(incident.notes, key=lambda l: l.created_at, reverse=True)
+    ] if incident.notes else []
+
+    report_responses = [
+        InvestigationReportListItem(
+            id=r.id,
+            incident_id=r.incident_id,
+            title=r.title,
+            report_type=r.report_type,
+            generated_by=r.generated_by,
+            summary=r.summary,
+            metadata=r.metadata_info or {},
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in sorted(incident.reports, key=lambda l: l.created_at, reverse=True)
+    ] if incident.reports else []
+
     return IncidentDetailResponse(
         id=incident.id,
         title=incident.title,
@@ -310,6 +358,8 @@ def get_incident(
         correlation_metadata=incident.correlation_metadata or {},
         alerts=alert_responses,
         audit_logs=audit_responses,
+        notes=note_responses,
+        reports=report_responses,
         created_at=incident.created_at.isoformat() if incident.created_at else "",
         updated_at=incident.updated_at.isoformat() if incident.updated_at else "",
     )
@@ -461,6 +511,16 @@ def update_incident(
                 details={"allowed": list(VALID_STATUSES), "provided": payload.status},
             )
         if normalized_status != incident.status:
+            allowed_transitions = ALLOWED_STATUS_TRANSITIONS.get(incident.status, set())
+            if normalized_status not in allowed_transitions:
+                raise ValidationError(
+                    message=f"Invalid status transition from '{incident.status}' to '{normalized_status}'. Allowed transitions: {sorted(list(allowed_transitions))}",
+                    details={
+                        "current_status": incident.status,
+                        "attempted_status": normalized_status,
+                        "allowed": sorted(list(allowed_transitions)),
+                    },
+                )
             prev_status = incident.status
             incident.status = normalized_status
             audit = IncidentAuditLog(
@@ -468,7 +528,7 @@ def update_incident(
                 action="status_change",
                 previous_value=prev_status,
                 new_value=normalized_status,
-                notes=payload.notes or f"Analyst updated incident status to {normalized_status}.",
+                notes=payload.notes or f"Analyst updated incident status from {prev_status} to {normalized_status}.",
                 actor=actor,
             )
             db.add(audit)
@@ -517,3 +577,527 @@ def update_incident(
     db.refresh(incident)
 
     return get_incident(incident_id=incident_id, db=db)
+
+
+# ============================================================================
+# PHASE 6: CASE NOTES & ANALYST INVESTIGATION NOTES
+# ============================================================================
+
+@router.post(
+    "/{incident_id}/notes",
+    response_model=CaseNoteResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add Analyst Investigation Note",
+    description="Attaches a validated forensic note to the incident case and writes an immutable audit record.",
+)
+def add_case_note(
+    incident_id: str,
+    payload: CaseNoteCreate,
+    db: Session = Depends(get_db),
+) -> CaseNoteResponse:
+    """Add a validated analyst investigation note to the incident case."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    author = (payload.author or "soc_analyst").strip()
+    content = payload.content.strip()
+
+    note = CaseNote(
+        id=str(uuid.uuid4()),
+        incident_id=incident.id,
+        author=author,
+        content=content,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db.add(note)
+
+    # Immutable audit trail entry
+    preview = content[:80] + ("..." if len(content) > 80 else "")
+    audit = IncidentAuditLog(
+        incident_id=incident.id,
+        action="NOTE_ADDED",
+        previous_value=None,
+        new_value=note.id,
+        notes=f"Note added by {author}: {preview}",
+        actor=author,
+    )
+    db.add(audit)
+
+    incident.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(note)
+
+    return CaseNoteResponse(
+        id=note.id,
+        incident_id=note.incident_id,
+        author=note.author,
+        content=note.content,
+        created_at=note.created_at.isoformat(),
+        updated_at=note.updated_at.isoformat(),
+    )
+
+
+@router.get(
+    "/{incident_id}/notes",
+    response_model=CaseNoteListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List Investigation Notes",
+    description="Retrieves all analyst investigation notes for an incident, ordered latest first.",
+)
+def list_case_notes(
+    incident_id: str,
+    db: Session = Depends(get_db),
+) -> CaseNoteListResponse:
+    """Retrieve all case notes for an incident."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    notes = db.scalars(
+        select(CaseNote)
+        .where(CaseNote.incident_id == incident_id)
+        .order_by(CaseNote.created_at.desc())
+    ).all()
+
+    items = [
+        CaseNoteResponse(
+            id=n.id,
+            incident_id=n.incident_id,
+            author=n.author,
+            content=n.content,
+            created_at=n.created_at.isoformat() if n.created_at else "",
+            updated_at=n.updated_at.isoformat() if n.updated_at else "",
+        )
+        for n in notes
+    ]
+
+    return CaseNoteListResponse(
+        incident_id=incident_id,
+        total=len(items),
+        notes=items,
+    )
+
+
+@router.put(
+    "/{incident_id}/notes/{note_id}",
+    response_model=CaseNoteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update Analyst Investigation Note",
+    description="Edits an existing investigation note. Audits changes and enforces authorization.",
+)
+@router.patch(
+    "/{incident_id}/notes/{note_id}",
+    response_model=CaseNoteResponse,
+    status_code=status.HTTP_200_OK,
+)
+def update_case_note(
+    incident_id: str,
+    note_id: str,
+    payload: CaseNoteUpdate,
+    db: Session = Depends(get_db),
+) -> CaseNoteResponse:
+    """Edit an existing analyst note and record the audit entry."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    note = db.scalar(
+        select(CaseNote).where(CaseNote.id == note_id, CaseNote.incident_id == incident_id)
+    )
+    if not note:
+        raise NotFoundError(
+            message=f"Case note with ID '{note_id}' not found for incident '{incident_id}'.",
+            details={"note_id": note_id, "incident_id": incident_id},
+        )
+
+    actor = (payload.author or note.author).strip()
+    if note.author and payload.author and payload.author != note.author and payload.author not in ["soc_analyst", "admin", "lead_analyst"]:
+        raise ValidationError(
+            message=f"User '{payload.author}' is not authorized to edit note authored by '{note.author}'.",
+            details={"author": note.author, "requested_by": payload.author},
+        )
+
+    prev_preview = note.content[:60]
+    note.content = payload.content.strip()
+    note.updated_at = datetime.now(timezone.utc)
+
+    # Auditing edit
+    audit = IncidentAuditLog(
+        incident_id=incident.id,
+        action="NOTE_UPDATED",
+        previous_value=prev_preview,
+        new_value=note.content[:60],
+        notes=f"Note updated by {actor}.",
+        actor=actor,
+    )
+    db.add(audit)
+
+    incident.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(note)
+
+    return CaseNoteResponse(
+        id=note.id,
+        incident_id=note.incident_id,
+        author=note.author,
+        content=note.content,
+        created_at=note.created_at.isoformat() if note.created_at else "",
+        updated_at=note.updated_at.isoformat() if note.updated_at else "",
+    )
+
+
+@router.delete(
+    "/{incident_id}/notes/{note_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete Analyst Investigation Note",
+    description="Deletes a note and records an immutable audit trail entry.",
+)
+def delete_case_note(
+    incident_id: str,
+    note_id: str,
+    author: Optional[str] = Query(default="soc_analyst"),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Delete an analyst note with audit logging."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    note = db.scalar(
+        select(CaseNote).where(CaseNote.id == note_id, CaseNote.incident_id == incident_id)
+    )
+    if not note:
+        raise NotFoundError(
+            message=f"Case note with ID '{note_id}' not found for incident '{incident_id}'.",
+            details={"note_id": note_id, "incident_id": incident_id},
+        )
+
+    actor = (author or "soc_analyst").strip()
+    if note.author and actor != note.author and actor not in ["soc_analyst", "admin", "lead_analyst"]:
+        raise ValidationError(
+            message=f"User '{actor}' is not authorized to delete note authored by '{note.author}'.",
+            details={"author": note.author, "requested_by": actor},
+        )
+
+    db.delete(note)
+    audit = IncidentAuditLog(
+        incident_id=incident.id,
+        action="NOTE_DELETED",
+        previous_value=note_id,
+        new_value=None,
+        notes=f"Note deleted by {author}: {note.content[:60]}...",
+        actor=author or "soc_analyst",
+    )
+    db.add(audit)
+
+    incident.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return {"status": "deleted", "id": note_id, "incident_id": incident_id}
+
+
+# ============================================================================
+# PHASE 6: INVESTIGATION HISTORY & CASE ACTIVITIES
+# ============================================================================
+
+@router.get(
+    "/{incident_id}/history",
+    response_model=List[IncidentAuditLogResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Investigation History / Case Activity",
+    description="Returns chronological audit logs and case activities for the incident.",
+)
+def get_incident_history(
+    incident_id: str,
+    db: Session = Depends(get_db),
+) -> List[IncidentAuditLogResponse]:
+    """Retrieve complete audit history and activity stream for an incident."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    audit_logs = db.scalars(
+        select(IncidentAuditLog)
+        .where(IncidentAuditLog.incident_id == incident_id)
+        .order_by(IncidentAuditLog.created_at.desc())
+    ).all()
+
+    return [
+        IncidentAuditLogResponse(
+            id=log.id,
+            incident_id=log.incident_id,
+            action=log.action,
+            previous_value=log.previous_value,
+            new_value=log.new_value,
+            notes=log.notes,
+            actor=log.actor,
+            created_at=log.created_at.isoformat() if log.created_at else "",
+        )
+        for log in audit_logs
+    ]
+
+
+# ============================================================================
+# PHASE 6: INVESTIGATION REPORTS GENERATION, PREVIEW & EXPORT
+# ============================================================================
+
+@router.post(
+    "/{incident_id}/reports",
+    response_model=InvestigationReportResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate Investigation Report",
+    description="Generates an evidence-grounded incident investigation report in structured JSON and print-ready HTML.",
+)
+def generate_investigation_report(
+    incident_id: str,
+    payload: InvestigationReportCreate = InvestigationReportCreate(),
+    db: Session = Depends(get_db),
+) -> InvestigationReportResponse:
+    """Generate an evidence-grounded report from actual incident data."""
+    incident = db.scalar(
+        select(Incident)
+        .options(joinedload(Incident.alerts))
+        .where(Incident.id == incident_id)
+    )
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    # Versioning: count existing reports to determine version number
+    existing_count = db.scalar(
+        select(func.count(InvestigationReport.id)).where(
+            InvestigationReport.incident_id == incident_id
+        )
+    ) or 0
+    version = existing_count + 1
+
+    generator_actor = (payload.generated_by or "soc_analyst").strip()
+
+    generated = ReportGeneratorService.generate_report(
+        db=db,
+        incident=incident,
+        report_type=payload.report_type or "investigation_summary",
+        custom_title=payload.title,
+        generated_by=generator_actor,
+        include_ai_analysis=payload.include_ai_analysis,
+    )
+
+    metadata_info = generated["metadata_info"]
+    metadata_info["version"] = version
+
+    report = InvestigationReport(
+        id=str(uuid.uuid4()),
+        incident_id=incident.id,
+        title=generated["title"],
+        report_type=payload.report_type or "investigation_summary",
+        generated_by=generator_actor,
+        summary=generated["summary"],
+        content=generated["content"],
+        rendered_html=generated["rendered_html"],
+        metadata_info=metadata_info,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(report)
+
+    # Auditing report generation
+    audit = IncidentAuditLog(
+        incident_id=incident.id,
+        action="REPORT_GENERATED",
+        previous_value=None,
+        new_value=report.id,
+        notes=f"Generated report '{report.title}' (v{version}) by {generator_actor}.",
+        actor=generator_actor,
+    )
+    db.add(audit)
+
+    incident.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(report)
+
+    return InvestigationReportResponse(
+        id=report.id,
+        incident_id=report.incident_id,
+        title=report.title,
+        report_type=report.report_type,
+        generated_by=report.generated_by,
+        summary=report.summary,
+        content=report.content,
+        rendered_html=report.rendered_html,
+        metadata=report.metadata_info,
+        created_at=report.created_at.isoformat(),
+    )
+
+
+@router.get(
+    "/{incident_id}/reports",
+    response_model=InvestigationReportListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List Incident Investigation Reports",
+    description="Retrieves summary metadata for all reports generated for the incident, ordered latest first.",
+)
+def list_investigation_reports(
+    incident_id: str,
+    db: Session = Depends(get_db),
+) -> InvestigationReportListResponse:
+    """Retrieve all reports generated for the incident."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    reports = db.scalars(
+        select(InvestigationReport)
+        .where(InvestigationReport.incident_id == incident_id)
+        .order_by(InvestigationReport.created_at.desc())
+    ).all()
+
+    items = [
+        InvestigationReportListItem(
+            id=r.id,
+            incident_id=r.incident_id,
+            title=r.title,
+            report_type=r.report_type,
+            generated_by=r.generated_by,
+            summary=r.summary,
+            metadata=r.metadata_info or {},
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in reports
+    ]
+
+    return InvestigationReportListResponse(
+        incident_id=incident_id,
+        total=len(items),
+        reports=items,
+    )
+
+
+@router.get(
+    "/{incident_id}/reports/{report_id}",
+    response_model=InvestigationReportResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Specific Investigation Report",
+    description="Retrieves a complete investigation report including structured content and rendered HTML.",
+)
+def get_investigation_report(
+    incident_id: str,
+    report_id: str,
+    db: Session = Depends(get_db),
+) -> InvestigationReportResponse:
+    """Retrieve a specific report by UUID."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    report = db.scalar(
+        select(InvestigationReport).where(
+            InvestigationReport.id == report_id,
+            InvestigationReport.incident_id == incident_id,
+        )
+    )
+    if not report:
+        raise NotFoundError(
+            message=f"Investigation report with ID '{report_id}' not found for incident '{incident_id}'.",
+            details={"report_id": report_id, "incident_id": incident_id},
+        )
+
+    return InvestigationReportResponse(
+        id=report.id,
+        incident_id=report.incident_id,
+        title=report.title,
+        report_type=report.report_type,
+        generated_by=report.generated_by,
+        summary=report.summary,
+        content=report.content,
+        rendered_html=report.rendered_html,
+        metadata=report.metadata_info,
+        created_at=report.created_at.isoformat() if report.created_at else "",
+    )
+
+
+@router.get(
+    "/{incident_id}/reports/{report_id}/export",
+    summary="Export Investigation Report",
+    description="Exports the report as standalone HTML or JSON with attachment headers for download.",
+)
+def export_investigation_report(
+    incident_id: str,
+    report_id: str,
+    format: str = Query(default="html", pattern="^(html|json)$"),
+    actor: str = Query(default="soc_analyst"),
+    db: Session = Depends(get_db),
+):
+    """Export and download a report in HTML or JSON format."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    report = db.scalar(
+        select(InvestigationReport).where(
+            InvestigationReport.id == report_id,
+            InvestigationReport.incident_id == incident_id,
+        )
+    )
+    if not report:
+        raise NotFoundError(
+            message=f"Investigation report with ID '{report_id}' not found for incident '{incident_id}'.",
+            details={"report_id": report_id, "incident_id": incident_id},
+        )
+
+    # Auditing export
+    audit = IncidentAuditLog(
+        incident_id=incident.id,
+        action="REPORT_EXPORTED",
+        previous_value=None,
+        new_value=report.id,
+        notes=f"Report '{report.title}' exported in {format.upper()} format by {actor}.",
+        actor=actor,
+    )
+    db.add(audit)
+    db.commit()
+
+    filename_safe_title = "".join(c for c in report.title if c.isalnum() or c in ("-", "_")).rstrip()
+    if not filename_safe_title:
+        filename_safe_title = f"Report_{report.id[:8]}"
+
+    if format == "json":
+        return JSONResponse(
+            content=report.to_dict(),
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename_safe_title}.json"'
+            },
+        )
+    else:
+        return HTMLResponse(
+            content=report.rendered_html,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename_safe_title}.html"'
+            },
+        )

@@ -25,9 +25,15 @@ import {
   Edit3,
   Bot,
   Sparkles,
+  MessageSquare,
+  FileCheck2,
+  LayoutDashboard,
 } from 'lucide-react';
 import { AlertDetail } from './AlertDetailsModal';
 import { IncidentInvestigationPanel } from './IncidentInvestigationPanel';
+import { InvestigationNotesPanel } from './InvestigationNotesPanel';
+import { InvestigationSummaryPanel } from './InvestigationSummaryPanel';
+import { InvestigationReportsPanel } from './InvestigationReportsPanel';
 
 export interface IncidentAuditItem {
   id: string;
@@ -69,6 +75,8 @@ export interface IncidentDetail {
   correlation_metadata: Record<string, any>;
   alerts?: AlertDetail[];
   audit_logs?: IncidentAuditItem[];
+  notes?: any[];
+  reports?: any[];
   created_at: string;
   updated_at: string;
 }
@@ -91,7 +99,9 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'alerts' | 'correlation' | 'copilot' | 'audit'>('copilot');
+  const [activeTab, setActiveTab] = useState<
+    'summary' | 'copilot' | 'notes' | 'reports' | 'timeline' | 'alerts' | 'correlation' | 'audit'
+  >('summary');
 
   // Status mutation state
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -451,10 +461,43 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
               </div>
 
               {/* Navigation Tabs */}
-              <div className="flex items-center gap-2 border-b border-slate-800">
+              <div className="flex items-center gap-1 sm:gap-2 border-b border-slate-800 overflow-x-auto pb-1">
+                <button
+                  onClick={() => setActiveTab('summary')}
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+                    activeTab === 'summary'
+                      ? 'border-cyan-400 text-cyan-400'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  Investigation Summary
+                </button>
+                <button
+                  onClick={() => setActiveTab('notes')}
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+                    activeTab === 'notes'
+                      ? 'border-cyan-400 text-cyan-400'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Case Notes ({incident.notes?.length || 0})
+                </button>
+                <button
+                  onClick={() => setActiveTab('reports')}
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+                    activeTab === 'reports'
+                      ? 'border-cyan-400 text-cyan-400'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <FileCheck2 className="w-3.5 h-3.5" />
+                  Investigation Reports ({incident.reports?.length || 0})
+                </button>
                 <button
                   onClick={() => setActiveTab('copilot')}
-                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
                     activeTab === 'copilot'
                       ? 'border-indigo-400 text-indigo-400'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -468,40 +511,40 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                 </button>
                 <button
                   onClick={() => setActiveTab('timeline')}
-                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
                     activeTab === 'timeline'
                       ? 'border-cyan-400 text-cyan-400'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5" />
-                  Chronological Timeline ({timelineItems.length})
+                  Timeline ({timelineItems.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('alerts')}
-                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
                     activeTab === 'alerts'
                       ? 'border-cyan-400 text-cyan-400'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <ShieldAlert className="w-3.5 h-3.5" />
-                  Correlated Alerts ({incident.alert_count})
+                  Alerts ({incident.alert_count})
                 </button>
                 <button
                   onClick={() => setActiveTab('correlation')}
-                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
                     activeTab === 'correlation'
                       ? 'border-cyan-400 text-cyan-400'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <GitBranch className="w-3.5 h-3.5" />
-                  Correlation Explanation & Entities
+                  Correlation
                 </button>
                 <button
                   onClick={() => setActiveTab('audit')}
-                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 ${
+                  className={`pb-2.5 px-3 text-xs font-mono font-semibold transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
                     activeTab === 'audit'
                       ? 'border-cyan-400 text-cyan-400'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -511,6 +554,35 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                   Audit Trail ({incident.audit_logs?.length || 0})
                 </button>
               </div>
+
+              {/* Tab 0: Investigation Summary */}
+              {activeTab === 'summary' && (
+                <InvestigationSummaryPanel
+                  incident={incident}
+                  onOpenCopilot={() => setActiveTab('copilot')}
+                  onOpenNotes={() => setActiveTab('notes')}
+                  onOpenReports={() => setActiveTab('reports')}
+                  onOpenTimeline={() => setActiveTab('timeline')}
+                />
+              )}
+
+              {/* Tab: Case Notes */}
+              {activeTab === 'notes' && (
+                <InvestigationNotesPanel
+                  incidentId={incident.id}
+                  actorName={actorName}
+                  onNoteAdded={() => fetchIncidentDetails(incident.id)}
+                />
+              )}
+
+              {/* Tab: Investigation Reports */}
+              {activeTab === 'reports' && (
+                <InvestigationReportsPanel
+                  incident={incident}
+                  actorName={actorName}
+                  onReportCreated={() => fetchIncidentDetails(incident.id)}
+                />
+              )}
 
               {/* Tab 1: Chronological Timeline */}
               {activeTab === 'timeline' && (

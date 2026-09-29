@@ -36,14 +36,22 @@ ALLOWED_MIME_TYPES = {
 
 async def read_and_validate_upload(file: UploadFile) -> Tuple[bytes, str]:
     """Reads uploaded file content in memory with size bounds and extension verification."""
-    filename = file.filename or "unknown"
-    lower_name = filename.lower()
+    raw_filename = file.filename or "unknown"
+    if "\x00" in raw_filename or "%00" in raw_filename:
+        raise ValidationError(message="Filename contains invalid characters.")
+
+    # Sanitize against path traversal attacks (e.g., ../../evil.csv or ..\\..\\evil.csv)
+    safe_filename = raw_filename.replace("\\", "/").split("/")[-1].strip()
+    if not safe_filename:
+        safe_filename = "upload.csv"
+    lower_name = safe_filename.lower()
 
     # 1. Validate file extension
     matched_ext = next((ext for ext in ALLOWED_EXTENSIONS if lower_name.endswith(ext)), None)
     if not matched_ext:
+        clean_display = "".join(c for c in safe_filename if c.isalnum() or c in ".-_ ")
         raise ValidationError(
-            message=f"Unsupported file format for '{filename}'. Only .json and .csv files are supported.",
+            message=f"Unsupported file format for '{clean_display}'. Only .json and .csv files are supported.",
             details={"allowed_extensions": list(ALLOWED_EXTENSIONS)},
         )
 

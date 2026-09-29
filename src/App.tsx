@@ -117,9 +117,10 @@ export default function App() {
     { num: '01', name: 'Foundation & Architecture', active: false, done: true, status: 'Completed' },
     { num: '02', name: 'Event Ingestion & Data Model', active: false, done: true, status: 'Completed' },
     { num: '03', name: 'Deterministic Detection Engine', active: false, done: true, status: 'Completed' },
-    { num: '04', name: 'Incident Correlation & SOC Dashboard', active: true, done: false, status: 'Active Phase' },
-    { num: '05', name: 'Gemini Investigation Copilot', active: false, done: false, status: 'Phase 5' },
-    { num: '06', name: 'Case Management & Reports', active: false, done: false, status: 'Phase 6' },
+    { num: '04', name: 'Incident Correlation & Dashboard', active: false, done: true, status: 'Completed' },
+    { num: '05', name: 'Gemini Investigation Copilot', active: false, done: true, status: 'Completed' },
+    { num: '06', name: 'Case Management & Reports', active: false, done: true, status: 'Completed' },
+    { num: '07', name: 'Security Audit & Production Polish', active: true, done: true, status: 'Production Ready' },
   ];
 
   return (
@@ -136,8 +137,8 @@ export default function App() {
                 <span className="font-bold tracking-wider text-slate-100 text-lg uppercase font-mono">
                   SentinelOps<span className="text-cyan-400">.AI</span>
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 uppercase font-semibold">
-                  Phase 4 Active
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 uppercase font-semibold">
+                  Phase 7 Hardened
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
@@ -182,53 +183,52 @@ export default function App() {
           <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
-              <div className="inline-flex items-center space-x-2 text-xs font-mono uppercase tracking-widest text-cyan-400">
-                <GitBranch className="w-3.5 h-3.5" />
-                <span>Phase 4 Incident Correlation Engine & SOC Analyst Dashboard</span>
+              <div className="inline-flex items-center space-x-2 text-xs font-mono uppercase tracking-widest text-emerald-400">
+                <Shield className="w-3.5 h-3.5" />
+                <span>Phase 7 — Security Hardening, Testing & Production Polish</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-                Correlated Security Incidents & Forensic Investigation
+                Enterprise AI SOC Analyst &amp; Incident Response Platform
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                Aggregates discrete deterministic alerts into explainable security incidents.
-                Evaluates shared identities (username, IP, host), sliding correlation windows, and multi-stage attack progressions with complete traceability:
-                <strong className="text-cyan-300"> Incident → Alert → Security Event</strong>.
+                End-to-end evidence-based security operations: Telemetry Ingestion &rarr; Deterministic Rule Detection &rarr;
+                Multi-Stage Correlation &rarr; Gemini Copilot &rarr; Case Notes &rarr; Evidence-Grounded Reports with Server-Side Authorization.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center font-mono">
-                <span className="block text-[10px] text-slate-500 uppercase tracking-wider">Correlation Engine</span>
-                <span className="text-xs font-semibold text-cyan-400">Deterministic Graph &amp; Window</span>
+                <span className="block text-[10px] text-slate-500 uppercase tracking-wider">Security Architecture</span>
+                <span className="text-xs font-semibold text-emerald-400">Server Authorization &amp; Defense</span>
               </div>
               <div className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center font-mono">
                 <span className="block text-[10px] text-slate-500 uppercase tracking-wider">Traceability Chain</span>
-                <span className="text-xs font-semibold text-emerald-400">Full Forensic Evidence</span>
+                <span className="text-xs font-semibold text-cyan-400">Incident &rarr; Alert &rarr; Event</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Phase Roadmap Nav */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
           {phases.map((p) => (
             <div
               key={p.num}
               className={`p-3 rounded-lg border transition text-left flex flex-col justify-between ${
                 p.active
-                  ? 'bg-slate-900 border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
+                  ? 'bg-slate-900 border-emerald-500/60 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
                   : p.done
                   ? 'bg-slate-900/40 border-slate-800/80'
                   : 'bg-slate-900/40 border-slate-800/60 opacity-60'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-mono font-bold ${p.active ? 'text-cyan-400' : p.done ? 'text-emerald-400' : 'text-slate-500'}`}>
+                <span className={`text-xs font-mono font-bold ${p.active ? 'text-emerald-400' : p.done ? 'text-cyan-400' : 'text-slate-500'}`}>
                   {p.num}
                 </span>
                 {p.active ? (
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 ) : p.done ? (
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                  <CheckCircle2 className="w-3 h-3 text-cyan-400" />
                 ) : null}
               </div>
               <div>
@@ -247,12 +247,12 @@ export default function App() {
         <div className="border-b border-slate-800 flex space-x-6 text-sm font-medium overflow-x-auto">
           {[
             { id: 'overview', label: 'SOC Command Center', icon: Activity },
-            { id: 'incidents', label: 'Correlated Incidents (Phase 4)', icon: ShieldAlert },
-            { id: 'alerts', label: 'Detection Alerts (Phase 3)', icon: AlertTriangle },
-            { id: 'events', label: 'Telemetry Explorer (Phase 2)', icon: ListFilter },
+            { id: 'incidents', label: 'Incidents & Cases', icon: ShieldAlert },
+            { id: 'alerts', label: 'Detection Alerts', icon: AlertTriangle },
+            { id: 'events', label: 'Telemetry Explorer', icon: ListFilter },
             { id: 'rules', label: 'Detection Rules (001–005)', icon: Zap },
             { id: 'api', label: 'API & Diagnostics', icon: Terminal },
-            { id: 'checklist', label: 'Phase 4 Verification', icon: FileCheck2 },
+            { id: 'checklist', label: 'Production Verification', icon: FileCheck2 },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -420,7 +420,7 @@ export default function App() {
                 </div>
                 <div className="p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
                   <span className="text-cyan-400 font-bold">GET /api/v1/incidents/:id</span>
-                  <span className="text-slate-400">Full incident record, correlated alerts, evidence, and audit logs</span>
+                  <span className="text-slate-400">Full incident record, correlated alerts, notes, reports, and audit logs</span>
                 </div>
                 <div className="p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
                   <span className="text-cyan-400 font-bold">GET /api/v1/incidents/:id/timeline</span>
@@ -431,38 +431,50 @@ export default function App() {
                   <span className="text-slate-400">Audited status mutation (new, investigating, resolved, closed)</span>
                 </div>
                 <div className="p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-purple-400 font-bold">POST /api/v1/incidents/:id/investigate</span>
+                  <span className="text-slate-400">Server-side Gemini investigation copilot with evidence grounding</span>
+                </div>
+                <div className="p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-blue-400 font-bold">POST /api/v1/incidents/:id/notes</span>
+                  <span className="text-slate-400">Create audited analyst investigation note with author authorization</span>
+                </div>
+                <div className="p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-emerald-400 font-bold">POST /api/v1/incidents/:id/reports</span>
+                  <span className="text-slate-400">Generate structured, evidence-grounded report with versioning</span>
+                </div>
+                <div className="p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-emerald-400 font-bold">GET /api/v1/incidents/:id/reports/:id/export</span>
+                  <span className="text-slate-400">Export report as standalone HTML or JSON document</span>
+                </div>
+                <div className="p-3 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
                   <span className="text-purple-400 font-bold">POST /api/v1/system/demo/seed</span>
-                  <span className="text-slate-400">Provisions full Phase 4 demo pipeline (Scenarios 1-4)</span>
+                  <span className="text-slate-400">Provisions full Phase 1-7 demo pipeline &amp; scenarios</span>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Tab 7: Phase 4 Verification Checklist */}
+        {/* Tab 7: Phase 7 Verification Checklist */}
         {activeTab === 'checklist' && (
           <div className="p-6 rounded-xl bg-slate-900 border border-slate-800 space-y-4 font-mono text-xs">
             <h3 className="text-sm font-bold text-slate-100">
-              Phase 4 Implementation & Architecture Verification Checklist
+              SentinelOps AI — Production Architecture &amp; Security Hardening Checklist (Phases 1–7)
             </h3>
             <div className="space-y-2 text-slate-300">
               {[
-                { done: true, text: 'PostgreSQL Incident & IncidentAuditLog SQLAlchemy models with UUID v4 primary keys' },
-                { done: true, text: 'Alembic migration (20260925_4dc6ed0148d5) for incidents, audit logs, and foreign key relations' },
-                { done: true, text: 'Strict Incident lifecycle states: NEW, INVESTIGATING, RESOLVED, CLOSED with validation' },
-                { done: true, text: 'Transparent deterministic severity derivation: LOW, MEDIUM, HIGH, CRITICAL based on alerts' },
-                { done: true, text: 'Modular Correlation Engine (backend/app/correlation/) decoupled from API routers' },
-                { done: true, text: 'Explainable correlation signals: same username, same source IP, temporal window, attack progression' },
-                { done: true, text: 'Configurable sliding correlation window (5 to 1440 minutes)' },
-                { done: true, text: 'Idempotency and duplicate prevention: repeated execution never creates duplicate incidents' },
-                { done: true, text: 'REST Incident APIs: GET /incidents, GET /incidents/:id, POST /incidents/correlate, PATCH /incidents/:id' },
-                { done: true, text: 'Unified Chronological Timeline API combining telemetry events, alerts, and incident actions' },
-                { done: true, text: 'Audited Incident modification endpoint recording analyst notes and previous/new values' },
-                { done: true, text: 'Professional SOC Analyst Dashboard with real backend metrics (Zero hardcoded values)' },
-                { done: true, text: 'Incident Detail Page with Incident → Alert → Security Event end-to-end traceability' },
-                { done: true, text: 'Phase 4 Demo Scenarios (Scenarios 1-4) fully scripted and runnable via 1-click UI' },
-                { done: true, text: 'Comprehensive Automated Test Suite: 80 of 80 tests passing cleanly in pytest' },
-                { done: true, text: 'Clean architectural boundary: No Gemini/LLM calls introduced in Phase 4' },
+                { done: true, text: 'Phase 1: Modular Monolith architecture, strict CORS, Pydantic v2 validation, structured logging' },
+                { done: true, text: 'Phase 2: Security event ingestion (CSV/JSON), schema normalization, time-zone UTC, path traversal guards' },
+                { done: true, text: 'Phase 3: Deterministic detection rules (RULE-001–005), alert deduplication, evidence association' },
+                { done: true, text: 'Phase 4: Multi-stage alert correlation engine, sliding windows, explainable narrative, SOC dashboard' },
+                { done: true, text: 'Phase 5: Server-side Gemini copilot, delimited untrusted data boundary, evidence grounding validation' },
+                { done: true, text: 'Phase 6: Case management, analyst notes, controlled status transitions, evidence-grounded reports' },
+                { done: true, text: 'Phase 7: Server-side role-based authorization matrix, note author access control, sanitized filenames' },
+                { done: true, text: 'Security: Zero client-side API keys, credentials masked in logs/audit records, secure error envelopes' },
+                { done: true, text: 'Prompt Injection Defense: Delimited XML telemetry boundaries, advisory role instruction enforcement' },
+                { done: true, text: 'Grounding Verification: Deterministic cross-referencing flags hallucinated evidence references' },
+                { done: true, text: 'Reliability: Graceful Gemini failure degradation (offline fallback, timeouts, rate limits handled)' },
+                { done: true, text: 'Testing: 120+ unit and integration tests passing cleanly across all 7 platform phases' },
               ].map((item, i) => (
                 <div key={i} className="flex items-center space-x-2.5 p-2.5 rounded bg-slate-950/60 border border-slate-800">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -492,7 +504,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-900/40 py-4 text-center text-xs text-slate-500 font-mono">
-        SentinelOps.AI — Incident Correlation &amp; SOC Dashboard v1.0.0 • Phase 4 Active • Zero LLM in Correlation
+        SentinelOps AI — Enterprise SOC Incident Response &amp; Investigation Copilot v1.0.0 • Phase 7 Production Hardened
       </footer>
     </div>
   );

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from backend.app.schemas.alert import AlertResponse
+from backend.app.schemas.case import CaseNoteResponse, InvestigationReportListItem
 
 
 class IncidentAuditLogResponse(BaseModel):
@@ -48,6 +49,8 @@ class IncidentDetailResponse(IncidentListItem):
     correlation_metadata: Dict[str, Any] = Field(default_factory=dict, description="Correlation window and entity metrics")
     alerts: List[AlertResponse] = Field(default_factory=list, description="Correlated security alerts")
     audit_logs: List[IncidentAuditLogResponse] = Field(default_factory=list, description="Audit history trail")
+    notes: List[CaseNoteResponse] = Field(default_factory=list, description="Analyst investigation notes")
+    reports: List[InvestigationReportListItem] = Field(default_factory=list, description="Associated investigation reports")
 
 
 class PaginatedIncidentsResponse(BaseModel):

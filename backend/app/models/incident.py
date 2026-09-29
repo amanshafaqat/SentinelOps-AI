@@ -156,6 +156,20 @@ class Incident(Base):
         order_by="IncidentAIAnalysis.created_at.desc()",
     )
 
+    notes: Mapped[List["CaseNote"]] = relationship(
+        "CaseNote",
+        back_populates="incident",
+        cascade="all, delete-orphan",
+        order_by="CaseNote.created_at.desc()",
+    )
+
+    reports: Mapped[List["InvestigationReport"]] = relationship(
+        "InvestigationReport",
+        back_populates="incident",
+        cascade="all, delete-orphan",
+        order_by="InvestigationReport.created_at.desc()",
+    )
+
     __table_args__ = (
         Index("ix_incidents_severity_status", "severity", "status"),
     )
@@ -372,4 +386,153 @@ class IncidentAIAnalysis(Base):
             "actor": self.actor,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class CaseNote(Base):
+    """Analyst investigation notes attached to an incident / case."""
+
+    __tablename__ = "case_notes"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+        index=True,
+    )
+
+    incident_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("incidents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    author: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        default="soc_analyst",
+        doc="Analyst identifier, username, or role",
+    )
+
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        doc="Forensic notes, investigation observations, or triage rationale",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    incident: Mapped["Incident"] = relationship("Incident", back_populates="notes")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "incident_id": self.incident_id,
+            "author": self.author,
+            "content": self.content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class InvestigationReport(Base):
+    """Immutable, evidence-grounded security incident investigation report."""
+
+    __tablename__ = "investigation_reports"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+        index=True,
+    )
+
+    incident_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("incidents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        doc="Title of report, e.g. 'Security Incident Investigation Report: <incident_title>'",
+    )
+
+    report_type: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="investigation_summary",
+        doc="Report type: investigation_summary, executive_brief, post_incident_review",
+    )
+
+    generated_by: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        default="soc_analyst",
+        doc="Analyst username or service identifier that generated the report",
+    )
+
+    summary: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        doc="Executive summary of incident and investigation findings",
+    )
+
+    content: Mapped[Dict[str, Any]] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"),
+        nullable=False,
+        default=dict,
+        doc="Structured sections: header, incident_info, affected_entities, detection_summary, evidence, timeline, ai_analysis, analyst_notes, audit_history",
+    )
+
+    rendered_html: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        doc="Pre-rendered standalone HTML document suitable for preview, printing, or download",
+    )
+
+    metadata_info: Mapped[Dict[str, Any]] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"),
+        nullable=False,
+        default=dict,
+        doc="Generation parameters, alert count, evidence count, version metadata",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+    incident: Mapped["Incident"] = relationship("Incident", back_populates="reports")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "incident_id": self.incident_id,
+            "title": self.title,
+            "report_type": self.report_type,
+            "generated_by": self.generated_by,
+            "summary": self.summary,
+            "content": self.content,
+            "rendered_html": self.rendered_html,
+            "metadata": self.metadata_info,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
 
