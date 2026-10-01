@@ -9,6 +9,7 @@ from alembic import context
 # Ensure backend root is on sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+import os
 from backend.app.core.config import settings
 from backend.app.db.base import Base
 from backend.app.models.event import SecurityEvent
@@ -18,8 +19,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Overwrite sqlalchemy.url dynamically with application settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Overwrite sqlalchemy.url dynamically with environment or application settings
+database_url = os.environ.get("DATABASE_URL") or settings.database_url
+config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata
 
@@ -41,7 +43,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = settings.database_url
+    configuration["sqlalchemy.url"] = os.environ.get("DATABASE_URL") or settings.database_url
 
     connectable = engine_from_config(
         configuration,
