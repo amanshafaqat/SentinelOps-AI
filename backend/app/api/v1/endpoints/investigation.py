@@ -62,6 +62,16 @@ def get_copilot_status() -> InvestigationStatusResponse:
     summary="Run AI evidence-grounded incident analysis",
     description="Invokes Gemini on the selected incident using strictly bounded, sanitized telemetry context.",
 )
+@router.post(
+    "/incidents/{incident_id}/investigate",
+    response_model=IncidentInvestigationAnalysis,
+    include_in_schema=False,
+)
+@router.post(
+    "/incidents/{incident_id}/analysis",
+    response_model=IncidentInvestigationAnalysis,
+    include_in_schema=False,
+)
 async def analyze_incident(
     request: Request,
     incident_id: str = Path(..., description="UUID of the incident to analyze"),

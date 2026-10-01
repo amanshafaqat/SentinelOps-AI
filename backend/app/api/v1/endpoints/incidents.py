@@ -865,6 +865,12 @@ def get_incident_history(
     summary="Generate Investigation Report",
     description="Generates an evidence-grounded incident investigation report in structured JSON and print-ready HTML.",
 )
+@router.post(
+    "/{incident_id}/report",
+    response_model=InvestigationReportResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 def generate_investigation_report(
     incident_id: str,
     payload: InvestigationReportCreate = InvestigationReportCreate(),
@@ -953,6 +959,12 @@ def generate_investigation_report(
     status_code=status.HTTP_200_OK,
     summary="List Incident Investigation Reports",
     description="Retrieves summary metadata for all reports generated for the incident, ordered latest first.",
+)
+@router.get(
+    "/{incident_id}/report",
+    response_model=InvestigationReportListResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
 )
 def list_investigation_reports(
     incident_id: str,
@@ -1101,3 +1113,65 @@ def export_investigation_report(
                 "Content-Disposition": f'attachment; filename="{filename_safe_title}.html"'
             },
         )
+
+
+@router.get(
+    "/{incident_id}/report/export",
+    summary="Export Latest Incident Investigation Report",
+    include_in_schema=False,
+)
+@router.get(
+    "/{incident_id}/reports/export",
+    summary="Export Latest Incident Investigation Report",
+    include_in_schema=False,
+)
+def export_latest_investigation_report(
+    incident_id: str,
+    format: str = Query(default="html", pattern="^(html|json)$"),
+    actor: str = Query(default="soc_analyst"),
+    db: Session = Depends(get_db),
+):
+    """Export the most recently generated report for this incident, generating one if needed."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    report = db.scalar(
+        select(InvestigationReport)
+        .where(InvestigationReport.incident_id == incident_id)
+        .order_by(InvestigationReport.created_at.desc())
+    )
+    if not report:
+        generated = ReportGeneratorService.generate_report(
+            db=db,
+            incident=incident,
+            report_type="investigation_summary",
+            generated_by=actor,
+        )
+        report = InvestigationReport(
+            id=str(uuid.uuid4()),
+            incident_id=incident.id,
+            title=generated["title"],
+            report_type="investigation_summary",
+            generated_by=actor,
+            summary=generated["summary"],
+            content=generated["content"],
+            rendered_html=generated["rendered_html"],
+            metadata_info=generated["metadata_info"],
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(report)
+        db.commit()
+        db.refresh(report)
+
+    return export_investigation_report(
+        incident_id=incident_id,
+        report_id=report.id,
+        format=format,
+        actor=actor,
+        db=db,
+    )
+

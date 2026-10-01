@@ -35,8 +35,8 @@ async def get_system_info() -> SystemInfoResponse:
         name=settings.app_name,
         version=settings.app_version,
         environment=settings.app_env,
-        current_phase="Phase 7",
-        phase_title="Security Audit, Testing & Production Polish",
+        current_phase="Phase 8",
+        phase_title="Final Portfolio Audit, Validation & Production Polish",
         architecture={
             "style": "Modular Monolith",
             "backend": "FastAPI + Pydantic v2",

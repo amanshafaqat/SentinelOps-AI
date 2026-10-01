@@ -120,7 +120,8 @@ export default function App() {
     { num: '04', name: 'Incident Correlation & Dashboard', active: false, done: true, status: 'Completed' },
     { num: '05', name: 'Gemini Investigation Copilot', active: false, done: true, status: 'Completed' },
     { num: '06', name: 'Case Management & Reports', active: false, done: true, status: 'Completed' },
-    { num: '07', name: 'Security Audit & Production Polish', active: true, done: true, status: 'Production Ready' },
+    { num: '07', name: 'Security Hardening & Testing', active: false, done: true, status: 'Completed' },
+    { num: '08', name: 'Final Portfolio Audit & Readiness', active: true, done: true, status: 'Verified' },
   ];
 
   return (
@@ -138,11 +139,11 @@ export default function App() {
                   SentinelOps<span className="text-cyan-400">.AI</span>
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 uppercase font-semibold">
-                  Phase 7 Hardened
+                  Portfolio Ready
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
-                AI SOC Analyst & Incident Response Platform
+                AI SOC Analyst & Incident Response Copilot
               </p>
             </div>
           </div>
@@ -178,38 +179,38 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Banner: Current Phase Focus */}
+        {/* Banner: Project Positioning */}
         <div className="relative overflow-hidden rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/30 via-slate-900/60 to-slate-900/40 p-5 sm:p-6 shadow-xl">
           <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <div className="inline-flex items-center space-x-2 text-xs font-mono uppercase tracking-widest text-emerald-400">
                 <Shield className="w-3.5 h-3.5" />
-                <span>Phase 7 — Security Hardening, Testing & Production Polish</span>
+                <span>Phase 8 — Final Portfolio Audit &amp; Production Verification</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-                Enterprise AI SOC Analyst &amp; Incident Response Platform
+                AI SOC Analyst &amp; Incident Response Copilot
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                End-to-end evidence-based security operations: Telemetry Ingestion &rarr; Deterministic Rule Detection &rarr;
-                Multi-Stage Correlation &rarr; Gemini Copilot &rarr; Case Notes &rarr; Evidence-Grounded Reports with Server-Side Authorization.
+                SentinelOps AI is an AI-assisted SOC platform that combines deterministic security detection,
+                explainable incident correlation, evidence-grounded Gemini investigation, and analyst case management.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center font-mono">
-                <span className="block text-[10px] text-slate-500 uppercase tracking-wider">Security Architecture</span>
-                <span className="text-xs font-semibold text-emerald-400">Server Authorization &amp; Defense</span>
+                <span className="block text-[10px] text-slate-500 uppercase tracking-wider">Detection &amp; AI</span>
+                <span className="text-xs font-semibold text-emerald-400">Deterministic + Evidence Grounded</span>
               </div>
               <div className="px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center font-mono">
                 <span className="block text-[10px] text-slate-500 uppercase tracking-wider">Traceability Chain</span>
-                <span className="text-xs font-semibold text-cyan-400">Incident &rarr; Alert &rarr; Event</span>
+                <span className="text-xs font-semibold text-cyan-400">Incident &rarr; Alert &rarr; Evidence &rarr; Event</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Phase Roadmap Nav */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           {phases.map((p) => (
             <div
               key={p.num}
@@ -504,7 +505,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-900/40 py-4 text-center text-xs text-slate-500 font-mono">
-        SentinelOps AI — Enterprise SOC Incident Response &amp; Investigation Copilot v1.0.0 • Phase 7 Production Hardened
+        SentinelOps AI — AI SOC Analyst &amp; Incident Response Copilot v1.0.0 • Phase 8 Portfolio Verified
       </footer>
     </div>
   );
