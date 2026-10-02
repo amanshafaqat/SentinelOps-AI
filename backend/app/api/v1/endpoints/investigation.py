@@ -42,17 +42,15 @@ router = APIRouter(tags=["Investigation Copilot"])
 @router.get(
     "/investigation/status",
     response_model=InvestigationStatusResponse,
-    summary="Get Gemini Copilot status and configuration",
-    description="Returns whether the backend AI copilot has an active API key and model parameters. Never reveals keys.",
+    summary="Get AI Copilot availability status",
+    description="Returns product-facing availability of AI investigation without exposing internal keys or configurations.",
 )
 def get_copilot_status() -> InvestigationStatusResponse:
     is_configured = default_investigation_service.gemini_client.is_configured()
     return InvestigationStatusResponse(
         status="ready" if is_configured else "unconfigured",
-        model=settings.gemini_model,
-        api_key_configured=is_configured,
-        timeout_seconds=settings.gemini_timeout_seconds,
-        max_context_events=settings.gemini_max_context_events,
+        available=is_configured,
+        message="AI Investigation Available" if is_configured else "AI Investigation Unavailable",
     )
 
 

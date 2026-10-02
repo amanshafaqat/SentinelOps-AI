@@ -106,8 +106,8 @@ export const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({
           setInternalAlert(data);
           setLoading(false);
         })
-        .catch((err) => {
-          setFetchError(err.message || 'Failed to fetch alert details');
+        .catch(() => {
+          setFetchError('Unable to load alert details.');
           setLoading(false);
         });
     } else {
@@ -460,7 +460,7 @@ export const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({
 
                           <div>
                             <span className="text-[11px] font-semibold text-slate-400 block mb-1">
-                              Raw Audit Log Payload (JSON):
+                              Original Event Payload:
                             </span>
                             <pre className="p-3 rounded bg-black/60 border border-slate-800 text-[11px] font-mono text-emerald-300/90 overflow-x-auto max-h-48">
                               {JSON.stringify(ev.raw_event, null, 2)}

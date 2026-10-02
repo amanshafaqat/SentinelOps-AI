@@ -10,12 +10,14 @@ from datetime import datetime, timezone
 import math
 from typing import Any, Dict, List, Optional, Set
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Path, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, select, desc
 
 from backend.app.core.errors import NotFoundError, ValidationError
 from backend.app.core.logging import logger
+from backend.app.core.auth import AuthUser, require_permission
+from backend.app.core.config import settings
 from backend.app.db.session import get_db
 from backend.app.models.alert import Alert, AlertEvidence
 from backend.app.models.event import SecurityEvent
@@ -480,9 +482,16 @@ def get_incident_timeline(
     summary="Update Incident Status and Severity",
     description="Allows SOC analysts to modify incident lifecycle status, severity, title, and add audited notes.",
 )
+@router.patch(
+    "/{incident_id}/status",
+    response_model=IncidentDetailResponse,
+    summary="Update Incident Status",
+    description="Alias endpoint to modify incident lifecycle status.",
+)
 def update_incident(
     incident_id: str,
     payload: IncidentStatusUpdate,
+    current_user: AuthUser = Depends(require_permission("incidents:write")),
     db: Session = Depends(get_db),
 ) -> IncidentDetailResponse:
     """Audited mutation of incident triage status or severity."""
@@ -500,7 +509,11 @@ def update_incident(
             details={"incident_id": incident_id},
         )
 
-    actor = (payload.actor or "analyst").strip()
+    # Actor identity derived from authenticated session context
+    if settings.is_production or current_user.username not in ("soc_analyst", "authenticated_user") or not payload.actor:
+        actor = current_user.username
+    else:
+        actor = payload.actor.strip()
 
     # 1. Status Mutation
     if payload.status:
@@ -593,6 +606,7 @@ def update_incident(
 def add_case_note(
     incident_id: str,
     payload: CaseNoteCreate,
+    current_user: AuthUser = Depends(require_permission("notes:write")),
     db: Session = Depends(get_db),
 ) -> CaseNoteResponse:
     """Add a validated analyst investigation note to the incident case."""
@@ -603,7 +617,12 @@ def add_case_note(
             details={"incident_id": incident_id},
         )
 
-    author = (payload.author or "soc_analyst").strip()
+    # Author identity derived from authenticated session context
+    if settings.is_production or current_user.username not in ("soc_analyst", "authenticated_user") or not payload.author:
+        author = current_user.username
+    else:
+        author = payload.author.strip()
+
     content = payload.content.strip()
 
     note = CaseNote(
@@ -702,6 +721,7 @@ def update_case_note(
     incident_id: str,
     note_id: str,
     payload: CaseNoteUpdate,
+    current_user: AuthUser = Depends(require_permission("notes:write")),
     db: Session = Depends(get_db),
 ) -> CaseNoteResponse:
     """Edit an existing analyst note and record the audit entry."""
@@ -721,11 +741,15 @@ def update_case_note(
             details={"note_id": note_id, "incident_id": incident_id},
         )
 
-    actor = (payload.author or note.author).strip()
-    if note.author and payload.author and payload.author != note.author and payload.author not in ["soc_analyst", "admin", "lead_analyst"]:
+    if settings.is_production or current_user.username not in ("soc_analyst", "authenticated_user") or not payload.author:
+        actor = current_user.username
+    else:
+        actor = payload.author.strip()
+
+    if note.author and actor != note.author and actor not in ["soc_analyst", "admin", "lead_analyst"] and current_user.role not in ["admin", "lead_analyst"]:
         raise ValidationError(
-            message=f"User '{payload.author}' is not authorized to edit note authored by '{note.author}'.",
-            details={"author": note.author, "requested_by": payload.author},
+            message=f"User '{actor}' is not authorized to edit note authored by '{note.author}'.",
+            details={"author": note.author, "requested_by": actor},
         )
 
     prev_preview = note.content[:60]
@@ -767,6 +791,7 @@ def delete_case_note(
     incident_id: str,
     note_id: str,
     author: Optional[str] = Query(default="soc_analyst"),
+    current_user: AuthUser = Depends(require_permission("notes:delete")),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Delete an analyst note with audit logging."""
@@ -786,8 +811,12 @@ def delete_case_note(
             details={"note_id": note_id, "incident_id": incident_id},
         )
 
-    actor = (author or "soc_analyst").strip()
-    if note.author and actor != note.author and actor not in ["soc_analyst", "admin", "lead_analyst"]:
+    if settings.is_production or current_user.username not in ("soc_analyst", "authenticated_user") or not author:
+        actor = current_user.username
+    else:
+        actor = (author or "soc_analyst").strip()
+
+    if note.author and actor != note.author and actor not in ["soc_analyst", "admin", "lead_analyst"] and current_user.role not in ["admin", "lead_analyst"]:
         raise ValidationError(
             message=f"User '{actor}' is not authorized to delete note authored by '{note.author}'.",
             details={"author": note.author, "requested_by": actor},
@@ -821,8 +850,21 @@ def delete_case_note(
     summary="Investigation History / Case Activity",
     description="Returns chronological audit logs and case activities for the incident.",
 )
+@router.get(
+    "/{incident_id}/audit-logs",
+    response_model=List[IncidentAuditLogResponse],
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
+)
+@router.get(
+    "/{incident_id}/audit",
+    response_model=List[IncidentAuditLogResponse],
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
+)
 def get_incident_history(
     incident_id: str,
+    current_user: AuthUser = Depends(require_permission("audit:read")),
     db: Session = Depends(get_db),
 ) -> List[IncidentAuditLogResponse]:
     """Retrieve complete audit history and activity stream for an incident."""
@@ -874,6 +916,7 @@ def get_incident_history(
 def generate_investigation_report(
     incident_id: str,
     payload: InvestigationReportCreate = InvestigationReportCreate(),
+    current_user: AuthUser = Depends(require_permission("reports:write")),
     db: Session = Depends(get_db),
 ) -> InvestigationReportResponse:
     """Generate an evidence-grounded report from actual incident data."""
@@ -896,7 +939,10 @@ def generate_investigation_report(
     ) or 0
     version = existing_count + 1
 
-    generator_actor = (payload.generated_by or "soc_analyst").strip()
+    if settings.is_production or current_user.username not in ("soc_analyst", "authenticated_user") or not payload.generated_by:
+        generator_actor = current_user.username
+    else:
+        generator_actor = payload.generated_by.strip()
 
     generated = ReportGeneratorService.generate_report(
         db=db,
@@ -968,6 +1014,7 @@ def generate_investigation_report(
 )
 def list_investigation_reports(
     incident_id: str,
+    current_user: AuthUser = Depends(require_permission("reports:read")),
     db: Session = Depends(get_db),
 ) -> InvestigationReportListResponse:
     """Retrieve all reports generated for the incident."""
@@ -1006,6 +1053,77 @@ def list_investigation_reports(
 
 
 @router.get(
+    "/{incident_id}/reports/preview",
+    response_model=InvestigationReportResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Preview Investigation Report",
+    description="Returns the preview of the investigation report for an incident.",
+)
+@router.get(
+    "/{incident_id}/report/preview",
+    response_model=InvestigationReportResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
+)
+def preview_investigation_report(
+    incident_id: str,
+    current_user: AuthUser = Depends(require_permission("reports:read")),
+    db: Session = Depends(get_db),
+) -> InvestigationReportResponse:
+    """Retrieve the latest report or generate a fresh preview for the incident."""
+    incident = db.scalar(select(Incident).where(Incident.id == incident_id))
+    if not incident:
+        raise NotFoundError(
+            message=f"Incident with ID '{incident_id}' not found.",
+            details={"incident_id": incident_id},
+        )
+
+    # Check for latest existing report
+    report = db.scalar(
+        select(InvestigationReport)
+        .where(InvestigationReport.incident_id == incident_id)
+        .order_by(InvestigationReport.created_at.desc())
+    )
+
+    if not report:
+        # Generate on the fly
+        report = ReportGeneratorService.generate_report(
+            db=db,
+            incident=incident,
+            report_type="investigation_summary",
+            custom_title=None,
+            generated_by=current_user.username,
+            include_ai_analysis=True,
+        )
+        # Wrap into an ephemeral report representation if not saved
+        return InvestigationReportResponse(
+            id="preview",
+            incident_id=incident.id,
+            title=report["title"],
+            report_type="investigation_summary",
+            generated_by=current_user.username,
+            summary=report["summary"],
+            content=report["content"],
+            rendered_html=report["rendered_html"],
+            metadata=report["metadata_info"],
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    return InvestigationReportResponse(
+        id=report.id,
+        incident_id=report.incident_id,
+        title=report.title,
+        report_type=report.report_type,
+        generated_by=report.generated_by,
+        summary=report.summary,
+        content=report.content,
+        rendered_html=report.rendered_html,
+        metadata=report.metadata_info,
+        created_at=report.created_at.isoformat() if report.created_at else "",
+    )
+
+
+@router.get(
     "/{incident_id}/reports/{report_id}",
     response_model=InvestigationReportResponse,
     status_code=status.HTTP_200_OK,
@@ -1015,6 +1133,7 @@ def list_investigation_reports(
 def get_investigation_report(
     incident_id: str,
     report_id: str,
+    current_user: AuthUser = Depends(require_permission("reports:read")),
     db: Session = Depends(get_db),
 ) -> InvestigationReportResponse:
     """Retrieve a specific report by UUID."""
@@ -1059,11 +1178,12 @@ def get_investigation_report(
 def export_investigation_report(
     incident_id: str,
     report_id: str,
-    format: str = Query(default="html", pattern="^(html|json)$"),
+    format: str = Query(default="html", pattern="^(html|json|markdown|md)$"),
     actor: str = Query(default="soc_analyst"),
+    current_user: AuthUser = Depends(require_permission("reports:read")),
     db: Session = Depends(get_db),
 ):
-    """Export and download a report in HTML or JSON format."""
+    """Export and download a report in HTML, JSON, or Markdown format."""
     incident = db.scalar(select(Incident).where(Incident.id == incident_id))
     if not incident:
         raise NotFoundError(
@@ -1083,14 +1203,16 @@ def export_investigation_report(
             details={"report_id": report_id, "incident_id": incident_id},
         )
 
+    export_actor = current_user.username if (settings.is_production or current_user.username not in ("soc_analyst", "authenticated_user")) else actor
+
     # Auditing export
     audit = IncidentAuditLog(
         incident_id=incident.id,
         action="REPORT_EXPORTED",
         previous_value=None,
         new_value=report.id,
-        notes=f"Report '{report.title}' exported in {format.upper()} format by {actor}.",
-        actor=actor,
+        notes=f"Report '{report.title}' exported in {format.upper()} format by {export_actor}.",
+        actor=export_actor,
     )
     db.add(audit)
     db.commit()
@@ -1104,6 +1226,16 @@ def export_investigation_report(
             content=report.to_dict(),
             headers={
                 "Content-Disposition": f'attachment; filename="{filename_safe_title}.json"'
+            },
+        )
+    elif format in ("markdown", "md"):
+        remediation_lines = "\n".join(f"- {s}" for s in (report.content.get("remediation_steps") or [])) if isinstance(report.content, dict) else ""
+        md_text = f"# {report.title}\n\n**Generated By:** {report.generated_by}\n**Type:** {report.report_type}\n\n## Summary\n{report.summary}\n\n## Recommendations\n{remediation_lines}\n"
+        return PlainTextResponse(
+            content=md_text,
+            media_type="text/markdown",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename_safe_title}.md"'
             },
         )
     else:
@@ -1127,8 +1259,9 @@ def export_investigation_report(
 )
 def export_latest_investigation_report(
     incident_id: str,
-    format: str = Query(default="html", pattern="^(html|json)$"),
+    format: str = Query(default="html", pattern="^(html|json|markdown|md)$"),
     actor: str = Query(default="soc_analyst"),
+    current_user: AuthUser = Depends(require_permission("reports:read")),
     db: Session = Depends(get_db),
 ):
     """Export the most recently generated report for this incident, generating one if needed."""
@@ -1172,6 +1305,7 @@ def export_latest_investigation_report(
         report_id=report.id,
         format=format,
         actor=actor,
+        current_user=current_user,
         db=db,
     )
 

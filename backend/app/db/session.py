@@ -13,6 +13,17 @@ from backend.app.core.config import settings
 from backend.app.core.logging import logger
 
 
+def normalize_database_url(db_url: str) -> str:
+    """Normalizes database URLs for SQLAlchemy 2.0 (e.g. postgres:// to postgresql+psycopg2://)."""
+    if not db_url:
+        return "sqlite:///./sentinelops.db"
+    if db_url.startswith("postgres://"):
+        return "postgresql+psycopg2://" + db_url[len("postgres://") :]
+    if db_url.startswith("postgresql://") and not db_url.startswith("postgresql+"):
+        return "postgresql+psycopg2://" + db_url[len("postgresql://") :]
+    return db_url
+
+
 def get_engine_args(db_url: str) -> Dict[str, Any]:
     """Generates engine arguments tailored to the database dialect."""
     args: Dict[str, Any] = {
@@ -29,7 +40,7 @@ def get_engine_args(db_url: str) -> Dict[str, Any]:
 
 def create_robust_engine():
     """Initializes SQLAlchemy engine with graceful local SQLite fallback when PostgreSQL is unreachable."""
-    db_url = settings.database_url
+    db_url = normalize_database_url(settings.database_url)
     try:
         eng = create_engine(db_url, **get_engine_args(db_url))
         with eng.connect() as conn:
@@ -38,7 +49,7 @@ def create_robust_engine():
     except Exception as exc:
         if not db_url.startswith("sqlite"):
             logger.warning(
-                f"Primary database connection to {db_url} failed ({exc}). "
+                f"Primary database connection failed ({exc}). "
                 "Engaging resilient SQLite storage backend for local sandbox."
             )
             fallback_url = "sqlite:///./sentinelops.db"

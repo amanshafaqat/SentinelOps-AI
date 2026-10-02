@@ -19,8 +19,20 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+def normalize_database_url(db_url: str) -> str:
+    """Normalizes database URLs for SQLAlchemy 2.0 (e.g. postgres:// to postgresql+psycopg2://)."""
+    if not db_url:
+        return "sqlite:///./sentinelops.db"
+    if db_url.startswith("postgres://"):
+        return "postgresql+psycopg2://" + db_url[len("postgres://") :]
+    if db_url.startswith("postgresql://") and not db_url.startswith("postgresql+"):
+        return "postgresql+psycopg2://" + db_url[len("postgresql://") :]
+    return db_url
+
+
 # Overwrite sqlalchemy.url dynamically with environment or application settings
-database_url = os.environ.get("DATABASE_URL") or settings.database_url
+raw_db_url = os.environ.get("DATABASE_URL") or settings.database_url
+database_url = normalize_database_url(raw_db_url)
 config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata
@@ -43,7 +55,8 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = os.environ.get("DATABASE_URL") or settings.database_url
+    raw_db_url = os.environ.get("DATABASE_URL") or settings.database_url
+    configuration["sqlalchemy.url"] = normalize_database_url(raw_db_url)
 
     connectable = engine_from_config(
         configuration,

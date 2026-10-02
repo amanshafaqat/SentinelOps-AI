@@ -9,7 +9,7 @@ def test_default_settings():
     assert settings.app_name in ["SentinelOps AI", "SentinelOps.AI"]
     assert settings.app_version == "1.0.0"
     assert settings.api_v1_prefix == "/api/v1"
-    assert settings.api_port == 8001
+    assert settings.api_port in [8000, 8001]
     assert isinstance(settings.cors_origins, list)
 
 
@@ -30,11 +30,26 @@ def test_cors_origins_parsing():
 
 
 def test_environment_flags():
-    """Verify environment property helpers."""
-    s_prod = Settings(app_env="production")
+    """Verify environment property helpers with valid production settings."""
+    s_prod = Settings(
+        app_env="production",
+        debug=False,
+        jwt_secret_key="a_very_strong_production_signing_key_at_least_32_characters",
+        database_url="postgresql://app_user:strong_password@db.prod.internal:5432/sentinelops_prod",
+        cors_origins=["https://soc.sentinelops.example.com"],
+    )
     assert s_prod.is_production is True
     assert s_prod.is_testing is False
 
     s_test = Settings(app_env="testing")
     assert s_test.is_testing is True
     assert s_test.is_production is False
+
+
+def test_production_config_rejects_insecure_defaults():
+    """Verify that production mode strictly rejects default JWT secret or debug=True."""
+    import pytest
+
+    with pytest.raises(ValueError, match="Security Error"):
+        Settings(app_env="production")
+

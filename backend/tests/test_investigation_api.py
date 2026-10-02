@@ -105,15 +105,18 @@ def seed_test_incident(db: Session) -> Incident:
 # ==============================================================================
 
 def test_investigation_status_never_exposes_api_key(client: TestClient):
-    """Critical security test: Verify that GEMINI_API_KEY is never leaked in status."""
+    """Critical security test: Verify that GEMINI_API_KEY, timeouts, context limits are not leaked."""
     res = client.get("/api/v1/investigation/status")
     assert res.status_code == 200
     data = res.json()
-    assert "model" in data
-    assert "api_key_configured" in data
     assert "status" in data
+    assert "available" in data
+    assert "message" in data
+    assert data["message"] in ["AI Investigation Available", "AI Investigation Unavailable"]
     assert "api_key" not in data
     assert "gemini_api_key" not in data
+    assert "timeout_seconds" not in data
+    assert "max_context_events" not in data
     # Ensure raw secret string is not in JSON text
     if settings.gemini_api_key:
         assert settings.gemini_api_key not in res.text

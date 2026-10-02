@@ -17,6 +17,15 @@ api_v1_router.include_router(events_router)
 api_v1_router.include_router(detection_router, prefix="/detection", tags=["detection"])
 api_v1_router.include_router(alerts_router, prefix="/alerts", tags=["alerts"])
 api_v1_router.include_router(incidents_router, prefix="/incidents", tags=["incidents"])
+
+# Correlation alias router
+correlation_router = APIRouter(prefix="/correlation", tags=["correlation"])
+from backend.app.api.v1.endpoints.incidents import correlate_incidents
+from backend.app.schemas.incident import CorrelateResponse
+correlation_router.add_api_route("/run", correlate_incidents, methods=["POST"], response_model=CorrelateResponse)
+correlation_router.add_api_route("/correlate", correlate_incidents, methods=["POST"], response_model=CorrelateResponse)
+api_v1_router.include_router(correlation_router)
+
 api_v1_router.include_router(investigation_router)
 api_v1_router.include_router(audit_router)
 

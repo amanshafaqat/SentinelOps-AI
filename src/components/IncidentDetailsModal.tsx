@@ -395,10 +395,10 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                       onChange={(e) => setSelectedStatus(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
                     >
-                      <option value="new">NEW (Unassigned Triage)</option>
-                      <option value="investigating">INVESTIGATING (Under Active Analysis)</option>
-                      <option value="resolved">RESOLVED (Threat Mitigated)</option>
-                      <option value="closed">CLOSED (Archived Incident)</option>
+                      <option value="new">NEW</option>
+                      <option value="investigating">INVESTIGATING</option>
+                      <option value="resolved">RESOLVED</option>
+                      <option value="closed">CLOSED</option>
                     </select>
                   </div>
                   <div>
@@ -418,15 +418,12 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                   </div>
                   <div>
                     <label className="text-xs font-mono text-slate-400 block mb-1">
-                      Analyst Handle
+                      Authenticated Analyst
                     </label>
-                    <input
-                      type="text"
-                      value={actorName}
-                      onChange={(e) => setActorName(e.target.value)}
-                      placeholder="e.g. jdoe_analyst"
-                      className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
-                    />
+                    <div className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 flex items-center justify-between">
+                      <span className="truncate">{actorName || 'Authenticated SOC Analyst'}</span>
+                      <span className="text-[10px] text-emerald-400 font-semibold uppercase">Verified</span>
+                    </div>
                   </div>
                 </div>
 
@@ -787,9 +784,14 @@ export const IncidentDetailsModal: React.FC<IncidentDetailsModalProps> = ({
                                       <p className="text-slate-400">{ev.description}</p>
                                     )}
                                     {ev.event && (
-                                      <pre className="p-2 bg-slate-950 rounded text-[10px] text-slate-400 overflow-x-auto">
-                                        {JSON.stringify(ev.event.raw_event || ev.event, null, 2)}
-                                      </pre>
+                                      <div>
+                                        <span className="text-[10px] text-slate-500 font-mono uppercase block mb-1">
+                                          Original Event Payload
+                                        </span>
+                                        <pre className="p-2 bg-slate-950 rounded text-[10px] text-slate-400 overflow-x-auto">
+                                          {JSON.stringify(ev.event.raw_event || ev.event, null, 2)}
+                                        </pre>
+                                      </div>
                                     )}
                                   </div>
                                 ))}

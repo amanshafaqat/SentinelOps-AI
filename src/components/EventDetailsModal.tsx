@@ -149,7 +149,7 @@ export const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ event, onC
             }`}
           >
             <FileCode className="w-3.5 h-3.5" />
-            <span>Raw Payload ({Object.keys(event.raw_event || {}).length} fields)</span>
+            <span>Original Event Payload ({Object.keys(event.raw_event || {}).length} fields)</span>
           </button>
           <button
             onClick={() => setActiveTab('metadata')}

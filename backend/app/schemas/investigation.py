@@ -77,12 +77,11 @@ class AnalystQuestionResponse(BaseModel):
 
 
 class InvestigationStatusResponse(BaseModel):
-    """Health and status of the server-side Gemini Investigation Copilot."""
+    """Product-facing health and availability status of the server-side AI Copilot."""
     status: str = Field(description="Operational status: 'ready', 'unconfigured', 'degraded'")
-    model: str = Field(description="Configured Gemini model identifier")
-    api_key_configured: bool = Field(description="Boolean flag indicating whether GEMINI_API_KEY is configured on the backend")
-    timeout_seconds: float = Field(description="Configured request timeout in seconds")
-    max_context_events: int = Field(description="Max supporting events incorporated into prompt context")
+    available: bool = Field(description="Whether AI investigation is currently available")
+    message: str = Field(default="AI Investigation Available", description="Product-facing availability message")
     disclaimer: str = Field(
         default="AI-generated analysis is advisory and must be reviewed by a human analyst. Deterministic telemetry remains the primary source of truth."
     )
+

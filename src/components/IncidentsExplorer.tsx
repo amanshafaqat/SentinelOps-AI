@@ -86,14 +86,14 @@ export const IncidentsExplorer: React.FC<IncidentsExplorerProps> = ({ onSelectAl
       }
 
       const res = await fetch(`/api/v1/incidents?${params.toString()}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch incidents`);
+      if (!res.ok) throw new Error('Unable to load incidents.');
 
       const data = await res.json();
       setIncidents(data.incidents || []);
       setTotalCount(data.total || 0);
       setTotalPages(data.total_pages || 1);
-    } catch (err: any) {
-      setError(err.message);
+    } catch {
+      setError('Unable to load incidents. Please verify connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,12 @@ export const IncidentsExplorer: React.FC<IncidentsExplorerProps> = ({ onSelectAl
       const res = await fetch('/api/v1/system/demo/seed', {
         method: 'POST',
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to seed demo pipeline`);
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error('Demo scenario seeding is disabled in production environments.');
+        }
+        throw new Error('Unable to seed simulated scenarios.');
+      }
       const data = await res.json();
       setDemoSeedMessage(
         `Provisioned ${data.events_created} events → ${data.alerts_generated} alerts → ${data.incidents_created} correlated incidents!`
@@ -121,7 +126,7 @@ export const IncidentsExplorer: React.FC<IncidentsExplorerProps> = ({ onSelectAl
       fetchIncidents();
       setTimeout(() => setDemoSeedMessage(null), 5000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Unable to seed simulated scenarios.');
     } finally {
       setIsSeedingDemo(false);
     }
@@ -202,7 +207,7 @@ export const IncidentsExplorer: React.FC<IncidentsExplorerProps> = ({ onSelectAl
             </span>
           </div>
           <p className="text-xs text-slate-400 font-mono mt-0.5">
-            Phase 4: Deterministic Alert Correlation Engine & Forensic Investigation
+            Deterministic Alert Correlation Engine &amp; Forensic Investigation
           </p>
         </div>
 

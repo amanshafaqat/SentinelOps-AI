@@ -70,6 +70,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "incidents:write",
         "notes:read",
         "notes:write",
+        "notes:delete",
         "reports:read",
         "reports:write",
         "ai:investigate",
@@ -83,6 +84,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         "incidents:write",
         "notes:read",
         "notes:write",
+        "notes:delete",
         "reports:read",
         "reports:write",
         "ai:investigate",
@@ -211,10 +213,14 @@ def get_current_user(
 ) -> AuthUser:
     """Dependency that extracts and authenticates the requesting actor.
 
-    Priority:
-    1. Authorization: Bearer <JWT or token-identifier>
-    2. Explicit Headers (X-Actor-Role, X-Actor-Name)
-    3. Default SOC Analyst fallback (for local sandbox/demo resilience)
+    In production:
+    - Requires valid signed JWT Bearer token
+    - Rejects static development tokens ('token-*')
+    - Rejects identity spoofing via arbitrary X-Actor-* headers
+    - Disables unauthenticated fallback
+
+    In development/testing:
+    - Supports JWT tokens, developer static tokens, explicit test headers, and demo fallback
     """
     # 1. Bearer Token Check
     if authorization:
@@ -227,23 +233,36 @@ def get_current_user(
             )
         
         token = parts[1].strip()
-        # Check dev static tokens
+
+        # Reject development static tokens in production
         if token.startswith("token-"):
+            if settings.is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Static development tokens are not permitted in production.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
             role_hint = token.replace("token-", "").lower()
             role = role_hint if role_hint in ROLE_PERMISSIONS else "viewer"
             username = f"{role}_user"
             perms = ROLE_PERMISSIONS.get(role, set())
             return AuthUser(username=username, role=role, permissions=perms)
         
-        # Check standard JWT token
+        # Standard signed JWT token verification
         claims = decode_access_token(token)
         username = claims.get("sub") or claims.get("username") or "authenticated_user"
         role = claims.get("role", "soc_analyst").lower()
         perms = ROLE_PERMISSIONS.get(role, set())
         return AuthUser(username=username, role=role, permissions=perms)
 
-    # 2. Explicit Role / Actor Header
+    # 2. Explicit Role / Actor Header (Development & Testing only)
     if x_actor_role or x_actor_name:
+        if settings.is_production:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Identity headers are not permitted in production without a valid Bearer token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         role = (x_actor_role or "soc_analyst").lower()
         if role not in ROLE_PERMISSIONS:
             raise HTTPException(
@@ -254,7 +273,15 @@ def get_current_user(
         perms = ROLE_PERMISSIONS.get(role, set())
         return AuthUser(username=username, role=role, permissions=perms)
 
-    # 3. Default demo mode actor
+    # 3. In production: unauthenticated access to protected endpoints is strictly forbidden
+    if settings.is_production:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please provide a valid Bearer token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 4. Default demo mode actor (development/testing sandbox only)
     default_role = "soc_analyst"
     return AuthUser(
         username="soc_analyst",

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 import json
-from typing import Optional, List
+from typing import Optional, List, Union, Dict, Any
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Body, status
 from sqlalchemy import select, func, or_, desc
 from sqlalchemy.orm import Session
@@ -53,11 +53,25 @@ async def import_events_file(
     summary="Batch Ingest JSON Events",
     description="Ingest an array of raw or normalized JSON security log records.",
 )
+@router.post(
+    "/import/json",
+    response_model=EventImportSummary,
+    status_code=status.HTTP_201_CREATED,
+    summary="Import JSON Security Events",
+    description="Alias endpoint for batch importing JSON security log records.",
+)
 async def batch_ingest_events(
-    events: List[dict] = Body(..., description="Array of event objects"),
+    payload: Union[List[dict], Dict[str, Any]] = Body(..., description="Array of event objects or object containing events key"),
     db: Session = Depends(get_db),
 ) -> EventImportSummary:
-    """Accepts JSON array directly in request body."""
+    """Accepts JSON array directly or wrapped object with 'events' array in request body."""
+    if isinstance(payload, dict):
+        events = payload.get("events")
+        if events is None:
+            raise ValidationError(message="JSON object payload must contain an 'events' list.")
+    else:
+        events = payload
+
     if not isinstance(events, list):
         raise ValidationError(message="Payload must be a JSON array of event objects.")
     if len(events) == 0:

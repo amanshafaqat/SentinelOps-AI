@@ -94,8 +94,8 @@ export const SocOverviewDashboard: React.FC<SocOverviewDashboardProps> = ({
         const alData = await recAlRes.json();
         setRecentAlerts(alData.alerts || []);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch {
+      setError('Unable to load SOC metrics and incident data.');
     } finally {
       setLoading(false);
     }
@@ -106,7 +106,12 @@ export const SocOverviewDashboard: React.FC<SocOverviewDashboardProps> = ({
     setSeedSuccessMsg(null);
     try {
       const res = await fetch('/api/v1/system/demo/seed', { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to run demo seed pipeline');
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error('Demo scenario seeding is disabled in production environments.');
+        }
+        throw new Error('Unable to run demo seed pipeline.');
+      }
       const data = await res.json();
       setSeedSuccessMsg(
         `Generated ${data.events_created} events → ${data.alerts_generated} alerts → ${data.incidents_created} correlated incidents!`
@@ -114,7 +119,7 @@ export const SocOverviewDashboard: React.FC<SocOverviewDashboardProps> = ({
       fetchAllStats();
       setTimeout(() => setSeedSuccessMsg(null), 6000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Unable to run demo seed pipeline.');
     } finally {
       setIsSeedingDemo(false);
     }
@@ -360,7 +365,7 @@ export const SocOverviewDashboard: React.FC<SocOverviewDashboardProps> = ({
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-amber-400" />
           <h3 className="text-sm font-bold text-slate-100 font-mono">
-            Phase 4 Forensic Demo Scenarios & Verified Attack Pipelines
+            Forensic Threat Scenarios &amp; Attack Pipelines
           </h3>
         </div>
         <p className="text-xs text-slate-400 font-mono">

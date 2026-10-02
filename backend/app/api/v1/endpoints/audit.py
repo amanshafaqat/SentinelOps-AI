@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from backend.app.db.session import get_db
 from backend.app.models.incident import IncidentAuditLog
 from backend.app.schemas.incident import IncidentAuditLogResponse
+from backend.app.core.auth import AuthUser, require_permission
 
 router = APIRouter(prefix="/audit", tags=["Audit Logging"])
 
@@ -46,6 +47,7 @@ def get_audit_logs(
     action: Optional[str] = Query(default=None, description="Filter by action type"),
     actor: Optional[str] = Query(default=None, description="Filter by actor handle"),
     incident_id: Optional[str] = Query(default=None, description="Filter by incident UUID"),
+    current_user: AuthUser = Depends(require_permission("audit:read")),
     db: Session = Depends(get_db),
 ) -> AuditLogListResponse:
     query = select(IncidentAuditLog)

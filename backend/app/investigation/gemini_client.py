@@ -77,10 +77,13 @@ class GeminiClient:
         temperature: Optional[float] = None,
     ):
         self.api_key = api_key if api_key is not None else settings.gemini_api_key
-        self.model = model or settings.gemini_model
+        raw_model = model or settings.gemini_model or "gemini-3-flash-preview"
         # Strip potential models/ prefix if already provided
-        if self.model.startswith("models/"):
-            self.model = self.model[len("models/") :]
+        if raw_model.startswith("models/"):
+            raw_model = raw_model[len("models/") :]
+        if not raw_model.startswith("gemini-") and not raw_model.startswith("gemma-"):
+            raw_model = f"gemini-{raw_model}"
+        self.model = raw_model
         self.timeout_seconds = timeout_seconds or settings.gemini_timeout_seconds
         self.max_output_tokens = max_output_tokens or settings.gemini_max_output_tokens
         self.temperature = temperature if temperature is not None else settings.gemini_temperature
@@ -129,17 +132,21 @@ class GeminiClient:
                     headers={"Content-Type": "application/json"},
                 )
 
-                if response.status_code in (404, 503) and self.model != "gemini-flash-latest":
-                    logger.warning("Gemini model %s returned HTTP %s. Attempting fallback to gemini-flash-latest", self.model, response.status_code)
-                    fallback_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
-                    fallback_resp = await client.post(
-                        fallback_url,
-                        params=params,
-                        json=payload,
-                        headers={"Content-Type": "application/json"},
-                    )
-                    if fallback_resp.status_code == 200:
-                        return self._handle_response(fallback_resp)
+                if response.status_code in (400, 404, 503):
+                    fallback_models = ["gemini-flash-lite-latest", "gemini-3-flash-preview", "gemini-flash-latest"]
+                    for fb_model in fallback_models:
+                        if fb_model == self.model:
+                            continue
+                        logger.warning("Gemini model %s returned HTTP %s. Attempting fallback to %s", self.model, response.status_code, fb_model)
+                        fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/{fb_model}:generateContent"
+                        fallback_resp = await client.post(
+                            fallback_url,
+                            params=params,
+                            json=payload,
+                            headers={"Content-Type": "application/json"},
+                        )
+                        if fallback_resp.status_code == 200:
+                            return self._handle_response(fallback_resp)
 
                 return self._handle_response(response)
 

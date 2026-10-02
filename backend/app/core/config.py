@@ -6,7 +6,7 @@ and validation. Secrets are loaded strictly from the environment.
 
 from typing import List, Union
 import json
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -86,6 +86,21 @@ class Settings(BaseSettings):
     @property
     def is_testing(self) -> bool:
         return self.app_env.lower() == "testing"
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.is_production:
+            if self.debug:
+                raise ValueError("Security Error: Debug mode must be disabled in production.")
+            if not self.jwt_secret_key or self.jwt_secret_key == "sentinelops-dev-secret-key-change-in-production":
+                raise ValueError("Security Error: Insecure default JWT secret cannot be used in production.")
+            if len(self.jwt_secret_key) < 32:
+                raise ValueError("Security Error: Production JWT secret key must be at least 32 characters.")
+            if "*" in self.cors_origins:
+                raise ValueError("Security Error: Wildcard CORS origin is not permitted in production.")
+            if "postgresql://postgres:postgres@localhost:5432/sentinelops" in self.database_url or "sqlite" in self.database_url:
+                raise ValueError("Security Error: Production database configuration required (local default credentials rejected).")
+        return self
 
 
 # Singleton instance

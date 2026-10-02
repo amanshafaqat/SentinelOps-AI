@@ -139,12 +139,11 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.exception(f"Unhandled exception caught on {request.method} {request.url.path}: {str(exc)}")
-    # In production, do not leak raw exception strings
-    message = "An unexpected internal server error occurred."
-    details = str(exc) if settings.debug else None
+    # Technical information is retained strictly in server-side logs, never in client response
+    message = "An unexpected server error occurred. Please try again later."
     return format_error_response(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         code="INTERNAL_SERVER_ERROR",
         message=message,
-        details=details,
+        details=None,
     )

@@ -43,7 +43,6 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
 
   // New note form state
   const [newContent, setNewContent] = useState('');
-  const [author, setAuthor] = useState(actorName || 'soc_analyst');
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Editing state
@@ -63,12 +62,12 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
     try {
       const res = await fetch(`/api/v1/incidents/${incidentId}/notes`);
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: Failed to load investigation notes`);
+        throw new Error('Unable to load investigation notes.');
       }
       const data = await res.json();
       setNotes(data.notes || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch {
+      setError('Unable to load investigation notes.');
     } finally {
       setLoading(false);
     }
@@ -95,14 +94,13 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          author: author.trim() || 'soc_analyst',
+          author: actorName || 'soc_analyst',
           content: trimmed,
         }),
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error?.message || `Failed to add note: HTTP ${res.status}`);
+        throw new Error('Unable to record investigation note.');
       }
 
       const createdNote: CaseNoteItem = await res.json();
@@ -112,7 +110,7 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
       if (onNoteAdded) onNoteAdded();
       setTimeout(() => setSuccessMessage(null), 3500);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Unable to record investigation note.');
     } finally {
       setSubmitting(false);
     }
@@ -148,14 +146,13 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          author: author.trim() || 'soc_analyst',
+          author: actorName || 'soc_analyst',
           content: trimmed,
         }),
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error?.message || `Failed to update note: HTTP ${res.status}`);
+        throw new Error('Unable to update investigation note.');
       }
 
       const updatedNote: CaseNoteItem = await res.json();
@@ -166,7 +163,7 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
       if (onNoteAdded) onNoteAdded();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Unable to update note.');
     } finally {
       setIsUpdating(false);
     }
@@ -178,13 +175,12 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
     }
 
     try {
-      const res = await fetch(`/api/v1/incidents/${incidentId}/notes/${noteId}?author=${encodeURIComponent(author)}`, {
+      const res = await fetch(`/api/v1/incidents/${incidentId}/notes/${noteId}?author=${encodeURIComponent(actorName || 'soc_analyst')}`, {
         method: 'DELETE',
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error?.message || `Failed to delete note: HTTP ${res.status}`);
+        throw new Error('Unable to delete note.');
       }
 
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
@@ -192,7 +188,7 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
       if (onNoteAdded) onNoteAdded();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Unable to delete note.');
     }
   };
 
@@ -209,15 +205,10 @@ export const InvestigationNotesPanel: React.FC<InvestigationNotesPanelProps> = (
             Immutable forensic commentary, hypothesis tracking, and peer handoff notes.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-          <span>Authoring as:</span>
-          <input
-            type="text"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-cyan-500 w-36 text-xs font-mono"
-            placeholder="Analyst handle"
-          />
+        <div className="flex items-center gap-2 text-xs font-mono text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded border border-slate-800">
+          <span>Analyst:</span>
+          <strong className="text-cyan-400">{actorName || 'Authenticated SOC Analyst'}</strong>
+          <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-1.5 py-0.5 rounded font-semibold uppercase">Verified</span>
         </div>
       </div>
 

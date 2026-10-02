@@ -74,12 +74,10 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
   const [reportType, setReportType] = useState('investigation_summary');
   const [customTitle, setCustomTitle] = useState('');
   const [includeAi, setIncludeAi] = useState(true);
-  const [author, setAuthor] = useState(actorName || 'soc_analyst');
 
   // Preview Modal
   const [previewReport, setPreviewReport] = useState<ReportDetail | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const [previewTab, setPreviewTab] = useState<'formatted' | 'html_raw' | 'json_raw'>('formatted');
 
   useEffect(() => {
     if (incident?.id) {
@@ -93,12 +91,12 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
     try {
       const res = await fetch(`/api/v1/incidents/${incident.id}/reports`);
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: Failed to load investigation reports`);
+        throw new Error('Unable to load investigation reports.');
       }
       const data = await res.json();
       setReports(data.reports || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch {
+      setError('Unable to load investigation reports.');
     } finally {
       setLoading(false);
     }
@@ -113,7 +111,7 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
       const payload = {
         report_type: reportType,
         title: customTitle.trim() || undefined,
-        generated_by: author.trim() || 'soc_analyst',
+        generated_by: actorName || 'soc_analyst',
         include_ai_analysis: includeAi,
       };
 
@@ -124,8 +122,7 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error?.message || `Failed to generate report: HTTP ${res.status}`);
+        throw new Error('Unable to generate investigation report.');
       }
 
       const created: ReportDetail = await res.json();
@@ -137,7 +134,7 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
       if (onReportCreated) onReportCreated();
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Unable to generate investigation report.');
     } finally {
       setGenerating(false);
     }
@@ -355,13 +352,13 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
               </div>
 
               <div>
-                <label className="text-slate-300 block mb-1 font-semibold">Author / Lead Analyst</label>
-                <input
-                  type="text"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-200 focus:outline-none focus:border-cyan-500"
-                />
+                <label className="text-slate-300 block mb-1 font-semibold">Lead Analyst Identity</label>
+                <div className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-200 flex items-center justify-between text-xs font-mono">
+                  <span>{actorName || 'Authenticated SOC Analyst'}</span>
+                  <span className="text-[10px] text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded font-semibold">
+                    Verified
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 p-3 bg-slate-950/60 border border-slate-800 rounded">
@@ -433,37 +430,9 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
               </div>
 
               <div className="flex items-center gap-2">
-                {/* View toggles */}
-                <div className="flex items-center bg-slate-900 border border-slate-700 rounded p-0.5 text-xs font-mono">
-                  <button
-                    onClick={() => setPreviewTab('formatted')}
-                    className={`px-2.5 py-1 rounded transition-colors ${
-                      previewTab === 'formatted' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Interactive
-                  </button>
-                  <button
-                    onClick={() => setPreviewTab('html_raw')}
-                    className={`px-2.5 py-1 rounded transition-colors ${
-                      previewTab === 'html_raw' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    HTML
-                  </button>
-                  <button
-                    onClick={() => setPreviewTab('json_raw')}
-                    className={`px-2.5 py-1 rounded transition-colors ${
-                      previewTab === 'json_raw' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    JSON
-                  </button>
-                </div>
-
                 <button
                   onClick={() => handlePrint(previewReport.rendered_html)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-mono flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Print / Save as PDF"
                 >
                   <Printer className="w-3.5 h-3.5 text-slate-300" />
@@ -472,15 +441,23 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
 
                 <button
                   onClick={() => handleExportDownload(previewReport.id, 'html')}
-                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-mono flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Download
+                  Export HTML
+                </button>
+
+                <button
+                  onClick={() => handleExportDownload(previewReport.id, 'json')}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export JSON
                 </button>
 
                 <button
                   onClick={() => setPreviewReport(null)}
-                  className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 ml-1"
+                  className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 ml-1 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -489,8 +466,7 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto bg-slate-950 p-4 sm:p-6 text-xs font-mono">
-              {previewTab === 'formatted' ? (
-                <div className="max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8 space-y-6 text-slate-200">
+              <div className="max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8 space-y-6 text-slate-200">
                   {/* Report Header */}
                   <div className="border-b-2 border-slate-700 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
@@ -659,15 +635,6 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
                     SentinelOps AI Evidence-Grounded Investigation Report &bull; Incident ID: {incident.id}
                   </div>
                 </div>
-              ) : previewTab === 'html_raw' ? (
-                <pre className="p-4 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-                  {previewReport.rendered_html}
-                </pre>
-              ) : (
-                <pre className="p-4 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-                  {JSON.stringify(previewReport.content, null, 2)}
-                </pre>
-              )}
             </div>
           </div>
         </div>
