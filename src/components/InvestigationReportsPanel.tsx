@@ -159,7 +159,7 @@ export const InvestigationReportsPanel: React.FC<InvestigationReportsPanelProps>
 
   const handleExportDownload = (reportId: string, format: 'html' | 'json') => {
     const url = `/api/v1/incidents/${incident.id}/reports/${reportId}/export?format=${format}&actor=${encodeURIComponent(
-      author
+      actorName || 'soc_analyst'
     )}`;
     const link = document.createElement('a');
     link.href = url;

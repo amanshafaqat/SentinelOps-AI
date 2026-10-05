@@ -36,9 +36,10 @@ async def get_system_info() -> SystemInfoResponse:
         name=settings.app_name,
         version=settings.app_version,
         environment=settings.app_env,
-        current_phase="Operational",
+        current_phase="Phase 8 (Production Verified)",
         phase_title="AI-Assisted SOC & Incident Response Copilot",
         architecture={
+            "style": "Modular Monolith",
             "service": "SentinelOps AI",
             "status": "Operational",
         },

@@ -185,8 +185,8 @@ export const IncidentInvestigationPanel: React.FC<IncidentInvestigationPanelProp
       }
 
       setAnalysis(data);
-    } catch (err: any) {
-      setAnalysisError(err.message || 'An unexpected error occurred during AI analysis');
+    } catch {
+      setAnalysisError('AI investigation is temporarily unavailable. Deterministic telemetry remains available.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -220,8 +220,8 @@ export const IncidentInvestigationPanel: React.FC<IncidentInvestigationPanelProp
 
       setQnaHistory((prev) => [...prev, newPair]);
       setQuestion('');
-    } catch (err: any) {
-      setQnaError(err.message || 'Error communicating with investigation copilot');
+    } catch {
+      setQnaError('AI investigation is temporarily unavailable. Please retry or inspect telemetry directly.');
     } finally {
       setIsAsking(false);
     }
@@ -292,10 +292,10 @@ export const IncidentInvestigationPanel: React.FC<IncidentInvestigationPanelProp
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-indigo-400" />
               <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider font-mono">
-                Structured Investigation Findings
+                AI-Assisted Incident Analysis
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                Model: {analysis.model_used}
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 font-semibold uppercase">
+                Advisory Findings
               </span>
               {analysis.evidence_truncated && (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/60">
