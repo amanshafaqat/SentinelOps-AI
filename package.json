@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8001 & vite --port=3000 --host=0.0.0.0",
+    "dev": "bash ./scripts/start-dev.sh",
+    "start": "node server.ts",
     "backend": "python3 -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8001 --reload",
     "test:backend": "pytest backend/",
     "build": "vite build",

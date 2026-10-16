@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import { spawn } from 'child_process';
@@ -14,7 +15,10 @@ const BACKEND_PORT = 8001;
 // Spawn Uvicorn backend process for standalone production execution
 let backendProcess: any = null;
 try {
-  backendProcess = spawn('python3', [
+  const venvPython = path.join(__dirname, '.venv', 'bin', 'python');
+  const pythonCmd = fs.existsSync(venvPython) ? venvPython : 'python3';
+
+  backendProcess = spawn(pythonCmd, [
     '-m', 'uvicorn',
     'backend.app.main:app',
     '--host', '0.0.0.0',

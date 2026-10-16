@@ -17,6 +17,7 @@ htmlcov/
 .venv/
 venv/
 ENV/
+.python_packages/
 
 # Databases & local sqlite
 *.sqlite
