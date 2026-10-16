@@ -66,7 +66,71 @@ The platform follows a **Modular Monolith** pattern with clear domain boundaries
 | **Grounding Validator**| `InvestigationValidator` | Deterministic cross-reference verification (flags unverified IDs) |
 | **Reports** | `ReportGeneratorService` | Structured forensic reports with print-ready HTML and JSON export |
 | **Frontend** | React 19, TypeScript, Vite, Tailwind CSS | High-fidelity SOC command center, incident explorer, report viewer |
-| **Testing** | Pytest, Pytest-Asyncio, HTTPX / TestClient | 135 automated tests covering all 8 phases |
+| **Testing** | Pytest, Pytest-Asyncio, HTTPX / TestClient | 156 automated tests covering all security and SOC phases |
+
+---
+
+## 3.1 Phase 2: Security Event Ingestion & Data Model
+
+Phase 2 establishes the high-throughput ingestion pipeline, normalization engine, and analytical persistence layer for raw security telemetry.
+
+### Architecture Workflow
+```
+JSON / CSV Log Files
+        ↓
+POST /api/v1/events/import (or /batch)
+        ↓
+File Validation (Extension, 10MB Limit, Null-Byte & Path Traversal Guards)
+        ↓
+Event Parsing (UTF-8-SIG, RFC 4180 CSV / JSON Objects & Arrays)
+        ↓
+Canonical Normalization (Field Aliasing across 14+ Dialects)
+        ↓
+Pydantic Validation (Timezone-Aware UTC, IPv4/IPv6, Ports 1-65535, Severity Bounds)
+        ↓
+PostgreSQL / SQLite Storage (B-Tree Composite Indexes for Detection Queries)
+        ↓
+Event Retrieval APIs (GET /events, GET /events/{id}, GET /stats/summary)
+        ↓
+Frontend Event Explorer (Pagination, Multi-Attribute Filtering, Forensic Details)
+```
+
+### SecurityEvent Schema
+* `id`: UUID v4 primary key (`String(36)`).
+* `timestamp`: Timezone-aware UTC timestamp (`DateTime(timezone=True)`).
+* `event_type`: High-level category (`authentication`, `privilege_change`, `network`, `user_management`, `system`).
+* `source`: Sensor or platform name (`linux_auth`, `windows_event`, `okta_sso`, `firewall`, `aws_cloudtrail`).
+* `source_ip` / `destination_ip`: IPv4 / IPv6 addresses (`String(45)`).
+* `source_port` / `destination_port`: TCP / UDP port numbers (`Integer`, 1–65535).
+* `username`: Subject or actor account name (`String(128)`).
+* `user_id`: Unique identifier (`String(128)`).
+* `hostname`: Asset or computer name (`String(128)`).
+* `action`: Specific operation performed (`login`, `logout`, `sudo`, `rdp_login`, `user_created`).
+* `status`: Action outcome (`success`, `failure`, `blocked`, `denied`, `unknown`).
+* `severity`: Normalized level (`info`, `low`, `medium`, `high`, `critical`).
+* `message`: Human-readable summary or original log text (`Text`).
+* `raw_event`: Full original payload preserved as `JSONB` (PostgreSQL) / `JSON` (SQLite) for forensic fidelity.
+* `event_metadata`: Extracted unmapped attributes, tags, and user-agent context (`JSONB` / `JSON`).
+* `created_at`: Ingestion audit timestamp (`DateTime(timezone=True)`).
+
+### Indexes for High-Frequency Analytical Queries
+* `ix_security_events_user_time`: Composite index on `(username, timestamp)` for credential abuse and user profiling.
+* `ix_security_events_src_ip_time`: Composite index on `(source_ip, timestamp)` for brute-force and IP sweep detection.
+* `ix_security_events_type_time`: Composite index on `(event_type, timestamp)` for category-specific window analysis.
+* `ix_security_events_status_time`: Composite index on `(status, timestamp)` for failure-then-success pattern matching.
+
+### Supported Ingestion Formats
+* **JSON:** Array of objects or object with an `"events": [...]` list.
+* **CSV:** Comma, tab, or pipe-delimited files with headers conforming to canonical field names or common telemetry aliases (`src_ip`, `user`, `host`, `@timestamp`).
+
+### Core Event APIs
+* `POST /api/v1/events/import`: Multipart file upload for `.json` and `.csv` logs.
+* `POST /api/v1/events/batch`: High-performance JSON array batch ingestion.
+* `POST /api/v1/events`: Single validated telemetry event creation.
+* `GET  /api/v1/events`: Paginated event stream with filtering by timestamp, source, IP, user, type, status, and severity.
+* `GET  /api/v1/events/{id}`: Detailed event inspection with full raw payload.
+* `GET  /api/v1/events/stats/summary`: Aggregated metrics by severity, status, event type, and top sources.
+* `DELETE /api/v1/events/{id}`: Event pruning for testing and data lifecycle maintenance.
 
 ---
 
@@ -144,7 +208,7 @@ To experience the full end-to-end incident response lifecycle:
 
 ## 9. Testing & Quality Assurance
 
-The test suite contains **135 automated unit, integration, and security tests**:
+The test suite contains **156 automated unit, integration, and security tests**:
 
 ```bash
 # Run complete test suite
