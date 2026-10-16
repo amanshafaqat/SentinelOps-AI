@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from backend.app.core.auth import AuthUser, require_permission
 from backend.app.db.session import get_db
 from backend.app.detection.engine import default_detection_engine
 from backend.app.schemas.alert import (
@@ -31,6 +32,7 @@ router = APIRouter()
 def run_detection(
     params: DetectionRunRequest = DetectionRunRequest(),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("alerts:modify")),
 ) -> DetectionRunResponse:
     """Execute detection engine and return execution summary."""
     logger.info(

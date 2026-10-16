@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, Request, status, Path
 from sqlalchemy.orm import Session
 
+from backend.app.core.auth import AuthUser, require_permission
 from backend.app.core.config import settings
 from backend.app.core.errors import format_error_response
 from backend.app.db.session import get_db
@@ -45,7 +46,9 @@ router = APIRouter(tags=["Investigation Copilot"])
     summary="Get AI Copilot availability status",
     description="Returns product-facing availability of AI investigation without exposing internal keys or configurations.",
 )
-def get_copilot_status() -> InvestigationStatusResponse:
+def get_copilot_status(
+    current_user: AuthUser = Depends(require_permission("incidents:read")),
+) -> InvestigationStatusResponse:
     is_configured = default_investigation_service.gemini_client.is_configured()
     return InvestigationStatusResponse(
         status="ready" if is_configured else "unconfigured",
@@ -74,6 +77,7 @@ async def analyze_incident(
     request: Request,
     incident_id: str = Path(..., description="UUID of the incident to analyze"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("ai:investigate")),
 ):
     client_ip = request.client.host if request.client else "unknown_client"
 
@@ -81,7 +85,7 @@ async def analyze_incident(
         analysis = await default_investigation_service.analyze_incident(
             db=db,
             incident_id=incident_id,
-            actor="soc_analyst",
+            actor=current_user.username,
             client_key=client_ip,
         )
         return analysis
@@ -162,6 +166,7 @@ async def ask_analyst_question(
     payload: AnalystQuestionRequest,
     incident_id: str = Path(..., description="UUID of the incident"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("ai:investigate")),
 ):
     client_ip = request.client.host if request.client else "unknown_client"
 
@@ -170,7 +175,7 @@ async def ask_analyst_question(
             db=db,
             incident_id=incident_id,
             question=payload.question,
-            actor=payload.actor or "soc_analyst",
+            actor=current_user.username,
             client_key=client_ip,
         )
         return response
@@ -243,6 +248,7 @@ async def ask_analyst_question(
 def get_incident_ai_history(
     incident_id: str = Path(..., description="UUID of the incident"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("ai:investigate")),
 ):
     history = default_investigation_service.get_incident_ai_history(db, incident_id)
     return history

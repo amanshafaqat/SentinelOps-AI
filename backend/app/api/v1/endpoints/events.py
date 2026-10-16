@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File, Body, status
 from sqlalchemy import select, func, or_, desc
 from sqlalchemy.orm import Session
 
+from backend.app.core.auth import AuthUser, require_permission
 from backend.app.core.errors import NotFoundError, ValidationError
 from backend.app.core.logging import logger
 from backend.app.db.session import get_db
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/events", tags=["Security Events"])
 async def import_events_file(
     file: UploadFile = File(..., description="JSON or CSV log file"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("events:write")),
 ) -> EventImportSummary:
     """Accepts multipart/form-data log file uploads (JSON or CSV)."""
     raw_bytes, extension = await read_and_validate_upload(file)
@@ -63,6 +65,7 @@ async def import_events_file(
 async def batch_ingest_events(
     payload: Union[List[dict], Dict[str, Any]] = Body(..., description="Array of event objects or object containing events key"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("events:write")),
 ) -> EventImportSummary:
     """Accepts JSON array directly or wrapped object with 'events' array in request body."""
     if isinstance(payload, dict):
@@ -93,6 +96,7 @@ async def batch_ingest_events(
 async def create_event(
     event_in: SecurityEventCreate,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("events:write")),
 ) -> SecurityEventResponse:
     """Create a single security event record."""
     event_model = SecurityEvent(
@@ -159,6 +163,7 @@ async def list_events(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(25, ge=1, le=100, description="Items per page (1-100)"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("events:read")),
 ) -> PaginatedEventsResponse:
     """Query and filter security events with index acceleration."""
     query = select(SecurityEvent)
@@ -244,7 +249,10 @@ async def list_events(
     summary="Get Aggregated Event Statistics",
     description="Returns aggregate counts grouped by severity, status, and top sources.",
 )
-async def get_event_stats(db: Session = Depends(get_db)) -> EventStatsSummary:
+async def get_event_stats(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("events:read")),
+) -> EventStatsSummary:
     """Aggregates security events distribution for SOC situational awareness."""
     total = db.scalar(select(func.count(SecurityEvent.id))) or 0
 
@@ -295,6 +303,7 @@ async def get_event_stats(db: Session = Depends(get_db)) -> EventStatsSummary:
 async def get_event(
     event_id: str,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("events:read")),
 ) -> SecurityEventResponse:
     """Fetch individual event by UUID."""
     event = db.scalar(select(SecurityEvent).where(SecurityEvent.id == event_id))
@@ -335,6 +344,7 @@ async def get_event(
 async def delete_event(
     event_id: str,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("events:write")),
 ) -> dict:
     """Delete an individual event."""
     event = db.scalar(select(SecurityEvent).where(SecurityEvent.id == event_id))

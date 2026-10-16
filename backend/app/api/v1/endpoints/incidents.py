@@ -74,6 +74,7 @@ ALLOWED_STATUS_TRANSITIONS: Dict[str, Set[str]] = {
 def correlate_incidents(
     params: CorrelateRequest = CorrelateRequest(),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("incidents:write")),
 ) -> CorrelateResponse:
     """Trigger the correlation engine and return execution statistics."""
     logger.info(
@@ -107,7 +108,10 @@ def correlate_incidents(
     summary="Incident Statistics Summary",
     description="Aggregated incident counts by severity and status for SOC situational awareness.",
 )
-def get_incident_stats(db: Session = Depends(get_db)) -> IncidentStatsResponse:
+def get_incident_stats(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("incidents:read")),
+) -> IncidentStatsResponse:
     """Retrieve statistical distribution of security incidents."""
     total_incidents = db.scalar(select(func.count(Incident.id))) or 0
 
@@ -172,6 +176,7 @@ def list_incidents(
     start_time: Optional[datetime] = Query(default=None, description="Filter incidents first_seen >= start_time"),
     end_time: Optional[datetime] = Query(default=None, description="Filter incidents last_seen <= end_time"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("incidents:read")),
 ) -> PaginatedIncidentsResponse:
     """List incidents with filtering and pagination."""
     base_query = select(Incident)
@@ -264,6 +269,7 @@ def list_incidents(
 def get_incident(
     incident_id: str,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("incidents:read")),
 ) -> IncidentDetailResponse:
     """Fetch individual incident with related alerts and audit trail."""
     stmt = (
@@ -376,6 +382,7 @@ def get_incident(
 def get_incident_timeline(
     incident_id: str,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("incidents:read")),
 ) -> IncidentTimelineResponse:
     """Assembles a unified chronological timeline from telemetry events, alerts, and incident actions."""
     incident = db.scalar(

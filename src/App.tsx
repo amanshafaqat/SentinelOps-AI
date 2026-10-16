@@ -313,22 +313,22 @@ export default function App() {
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-400 border border-blue-800">
                       RULE-004
                     </span>
-                    <span className="text-xs font-bold text-slate-200">Suspicious Service Installation</span>
+                    <span className="text-xs font-bold text-slate-200">Unusual Multi-Source Authentication Pattern</span>
                   </div>
                   <span className="text-[10px] text-blue-400 font-semibold uppercase">Medium Severity</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-3">
-                  Captures systemd, init, or Windows service installations from unexpected user contexts or staging paths.
+                  Detects when a single user account is accessed or attempted from multiple distinct source IPs within a 60-minute window, indicating distributed credential abuse or session hijacking.
                 </p>
                 <div className="space-y-1 text-[11px] text-slate-400 bg-slate-950/80 p-2.5 rounded border border-slate-800/80">
                   <div className="flex justify-between">
-                    <span>Pattern:</span> <strong className="text-slate-200">service_create, daemon_reload</strong>
+                    <span>Pattern:</span> <strong className="text-slate-200">&ge; 3 distinct source IPs</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span>Grouping Entity:</span> <strong className="text-cyan-400">hostname</strong>
+                    <span>Grouping Entity:</span> <strong className="text-cyan-400">username</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span>MITRE ATT&CK:</span> <strong className="text-slate-300">T1543.002 (Systemd Service Persistence)</strong>
+                    <span>MITRE ATT&CK:</span> <strong className="text-slate-300">T1078 (Valid Accounts)</strong>
                   </div>
                 </div>
               </div>
@@ -337,25 +337,25 @@ export default function App() {
               <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition md:col-span-2">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-400 border border-amber-800">
                       RULE-005
                     </span>
-                    <span className="text-xs font-bold text-slate-200">Indicator Matching &amp; C2 Beaconing</span>
+                    <span className="text-xs font-bold text-slate-200">Configured Threat Indicator Match</span>
                   </div>
-                  <span className="text-[10px] text-rose-400 font-semibold uppercase">Critical Severity</span>
+                  <span className="text-[10px] text-amber-400 font-semibold uppercase">High Severity</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-3">
-                  Matches outbound connections against known malicious IP ranges, suspicious domain patterns, and repetitive beaconing intervals.
+                  Correlates telemetry against explicitly configured threat indicators (known attacker IPs, compromised usernames, or hostnames). High severity for active traffic, medium for blocked/dropped.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-400 bg-slate-950/80 p-2.5 rounded border border-slate-800/80">
                   <div>
-                    <span>Pattern:</span> <strong className="text-slate-200 block">Threat Intel Feed + Regularity</strong>
+                    <span>Pattern:</span> <strong className="text-slate-200 block">Exact IOC Match (IP / Host / User)</strong>
                   </div>
                   <div>
-                    <span>Grouping Entity:</span> <strong className="text-cyan-400 block">destination_ip</strong>
+                    <span>Grouping Entity:</span> <strong className="text-cyan-400 block">source_ip, destination_ip</strong>
                   </div>
                   <div>
-                    <span>MITRE ATT&CK:</span> <strong className="text-slate-300 block">T1071.001 (Application Layer Protocol)</strong>
+                    <span>MITRE ATT&CK:</span> <strong className="text-slate-300 block">T1071 (Application Layer Protocol)</strong>
                   </div>
                 </div>
               </div>

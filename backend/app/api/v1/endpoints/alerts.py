@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, select
 
+from backend.app.core.auth import AuthUser, require_permission
 from backend.app.db.session import get_db
 from backend.app.models.alert import Alert, AlertEvidence
 from backend.app.models.event import SecurityEvent
@@ -45,6 +46,7 @@ def list_alerts(
     start_time: Optional[datetime] = Query(default=None, description="Filter detected_at >= start_time"),
     end_time: Optional[datetime] = Query(default=None, description="Filter detected_at <= end_time"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("alerts:read")),
 ) -> PaginatedAlertsResponse:
     """List alerts with pagination and multidimensional filtering."""
     base_query = select(Alert)
@@ -127,7 +129,10 @@ def list_alerts(
     summary="Get Alert Statistics",
     description="Aggregated count of alerts categorized by severity, status, and triggering rule.",
 )
-def get_alert_stats(db: Session = Depends(get_db)) -> AlertStatsResponse:
+def get_alert_stats(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("alerts:read")),
+) -> AlertStatsResponse:
     """Return aggregated alert metrics."""
     total = db.scalar(select(func.count(Alert.id))) or 0
 
@@ -163,7 +168,11 @@ def get_alert_stats(db: Session = Depends(get_db)) -> AlertStatsResponse:
     summary="Get Alert Details with Evidence",
     description="Retrieve an alert along with its full supporting evidence timeline and underlying SecurityEvents.",
 )
-def get_alert(alert_id: str, db: Session = Depends(get_db)) -> AlertDetailResponse:
+def get_alert(
+    alert_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("alerts:read")),
+) -> AlertDetailResponse:
     """Retrieve full alert details including linked evidence events."""
     stmt = (
         select(Alert)
@@ -229,6 +238,7 @@ def update_alert_status(
     alert_id: str,
     update: AlertStatusUpdate,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_permission("alerts:modify")),
 ) -> AlertResponse:
     """Update status of an alert."""
     alert = db.scalar(select(Alert).where(Alert.id == alert_id))
