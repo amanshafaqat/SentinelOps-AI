@@ -43,12 +43,14 @@ class DetailedHealthResponse(BaseModel):
     response_model=HealthResponse,
     status_code=status.HTTP_200_OK,
     summary="Basic Service Health Check",
-    description="Returns service availability, version, and current UTC timestamp.",
+    description="Returns service availability, version, and current UTC timestamp reflecting database connectivity.",
 )
 async def get_health() -> HealthResponse:
-    """Basic health check endpoint."""
+    """Basic health check endpoint reflecting real database connectivity."""
+    db_check = check_database_connection()
+    is_healthy = db_check.get("status") == "connected"
     return HealthResponse(
-        status="healthy",
+        status="healthy" if is_healthy else "degraded",
         service=settings.app_name,
         version=settings.app_version,
         environment=settings.app_env,

@@ -42,15 +42,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         Base.metadata.create_all(bind=engine)
         logger.info("Database schema verified and initialized.")
 
-        # Seed initial demo pipeline if no events exist
-        with SessionLocal() as db:
-            from backend.app.models.event import SecurityEvent
-            from backend.app.services.demo_seeder import seed_demo_pipeline
-            count = db.query(SecurityEvent).count()
-            if count == 0:
-                logger.info("Empty database detected. Seeding Phase 4 demo scenarios...")
-                seed_demo_pipeline(db=db, force_reset=False)
-                logger.info("Phase 4 demo dataset successfully provisioned.")
+        # Seed initial demo pipeline only in non-production if no events exist
+        if not settings.is_production:
+            with SessionLocal() as db:
+                from backend.app.models.event import SecurityEvent
+                from backend.app.services.demo_seeder import seed_demo_pipeline
+                count = db.query(SecurityEvent).count()
+                if count == 0:
+                    logger.info("Empty development database detected. Seeding initial demo scenarios...")
+                    seed_demo_pipeline(db=db, force_reset=False)
+                    logger.info("Initial demo dataset successfully provisioned.")
     except Exception as exc:
         logger.warning(f"Database schema auto-creation encountered notice: {exc}")
 
@@ -107,7 +108,6 @@ def create_application() -> FastAPI:
             "name": settings.app_name,
             "version": settings.app_version,
             "status": "operational",
-            "phase": "Phase 1 - Foundation & Architecture",
             "docs": "/docs" if not settings.is_production else "Disabled in production",
             "health": f"{settings.api_v1_prefix}/health",
         }
